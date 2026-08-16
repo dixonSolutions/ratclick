@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="ratclick">
+  <schema id="org.gnome.shell.extensions.ratclick"
+          path="/org/gnome/shell/extensions/ratclick/">
+    <key name="toggle-clicking" type="as">
+      <default>[]</default>
+      <summary>Start or stop clicking</summary>
+      <description>
+        Keyboard shortcut that toggles the RatClick auto-clicker on and off.
+        An empty list means no shortcut is bound.
+      </description>
+    </key>
+  </schema>
+</schemalist>

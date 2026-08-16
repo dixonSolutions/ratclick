@@ -1,0 +1,10 @@
+{
+  "uuid": "ratclick@dixonsolutions.github.io",
+  "name": "RatClick",
+  "description": "Quick Settings toggle, panel indicator and global keyboard shortcut for the RatClick auto-clicker daemon.\n\nThe extension is only a front-end: it talks to the ratclick daemon over the session bus and shows whether the clicker is currently armed. Install the RatClick application itself to configure click rate, mouse button and run duration.",
+  "shell-version": ["49", "50"],
+  "settings-schema": "org.gnome.shell.extensions.ratclick",
+  "gettext-domain": "ratclick",
+  "url": "https://github.com/dixonSolutions/ratclick",
+  "version-name": "0.1.0"
+}

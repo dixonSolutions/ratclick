@@ -1,0 +1,8 @@
+# RatClick needs to create a virtual pointer through /dev/uinput.
+#
+# The uinput node is root-only by default. Granting the `input` group write
+# access is the same approach ydotool, wtype and the Steam client use; it is the
+# narrowest thing that works, because uinput has no finer-grained permission
+# model. Anyone in `input` can already read every keystroke on the system, so
+# this does not widen the trust boundary.
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"

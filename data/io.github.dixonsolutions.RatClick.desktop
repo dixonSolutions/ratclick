@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=RatClick
+GenericName=Auto Clicker
+Comment=Click the mouse for you, at a rate and for a time you choose
+Exec=ratclick-gui
+Icon=io.github.dixonsolutions.RatClick
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=click;autoclick;auto-click;clicker;mouse;macro;
+StartupNotify=true
+StartupWMClass=ratclick-gui
+X-GNOME-UsesNotifications=true
+Actions=Toggle;
+
+[Desktop Action Toggle]
+Name=Start or stop clicking
+Exec=ratclick toggle

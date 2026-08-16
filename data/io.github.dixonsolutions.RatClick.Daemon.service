@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=io.github.dixonsolutions.RatClick.Daemon
+Exec=/usr/libexec/ratclick/ratclickd
+SystemdService=ratclick.service

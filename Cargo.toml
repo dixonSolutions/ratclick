@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ratclick-core",
+    "crates/ratclick-daemon",
+    "crates/ratclick-cli",
+    "crates/ratclick-gui",
+    # Ships no code; carries the .deb / .rpm metadata for the whole install.
+    "packaging",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/dixonSolutions/ratclick"
+homepage = "https://github.com/dixonSolutions/ratclick"
+authors = ["dixonSolutions"]
+
+[workspace.dependencies]
+ratclick-core = { path = "crates/ratclick-core", version = "0.1.0" }
+
+anyhow = "1.0"
+clap = { version = "4.6", features = ["derive"] }
+directories = "6.0"
+evdev = "0.13"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+toml = "1.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time", "sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

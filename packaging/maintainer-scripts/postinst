@@ -1,0 +1,70 @@
+#!/bin/sh
+# Debian postinst for ratclick.
+#
+# Deliberately *not* `set -e`. Every step here refreshes a cache that some other
+# package may or may not own; a container without udev, or a minimal image
+# without gtk-update-icon-cache, must not turn into a failed install.
+
+refresh_udev() {
+    command -v udevadm >/dev/null 2>&1 || return 0
+    # Containers have no udev daemon; both calls are expected to fail there.
+    udevadm control --reload-rules >/dev/null 2>&1 || true
+    udevadm trigger --subsystem-match=misc --sysname-match=uinput >/dev/null 2>&1 || true
+}
+
+refresh_schemas() {
+    command -v glib-compile-schemas >/dev/null 2>&1 || return 0
+    [ -d /usr/share/glib-2.0/schemas ] && \
+        glib-compile-schemas /usr/share/glib-2.0/schemas >/dev/null 2>&1 || true
+    # The Shell extension keeps its own schema next to itself.
+    ext_schemas=/usr/share/gnome-shell/extensions/ratclick@dixonsolutions.github.io/schemas
+    [ -d "$ext_schemas" ] && \
+        glib-compile-schemas "$ext_schemas" >/dev/null 2>&1 || true
+    return 0
+}
+
+refresh_icons() {
+    command -v gtk-update-icon-cache >/dev/null 2>&1 || return 0
+    [ -d /usr/share/icons/hicolor ] && \
+        gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    return 0
+}
+
+refresh_desktop() {
+    command -v update-desktop-database >/dev/null 2>&1 || return 0
+    update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || true
+    return 0
+}
+
+first_install_note() {
+    cat <<'EOF'
+
+RatClick is installed. Open it with:
+
+    ratclick gui
+
+Clicking needs write access to /dev/uinput, which the installed udev rule
+grants to the `input` group. If you are not in it yet:
+
+    sudo usermod -aG input $USER
+
+then log out and back in. `ratclick doctor` checks all of this for you.
+
+EOF
+}
+
+case "$1" in
+configure)
+    refresh_udev
+    refresh_schemas
+    refresh_icons
+    refresh_desktop
+    # $2 is the previously configured version — empty only on a first install.
+    if [ -z "$2" ]; then
+        first_install_note
+    fi
+    ;;
+abort-upgrade | abort-remove | abort-deconfigure) ;;
+esac
+
+exit 0

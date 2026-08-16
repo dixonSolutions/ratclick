@@ -1,0 +1,28 @@
+[package]
+name = "ratclick-daemon"
+description = "Background click engine and session D-Bus service for RatClick"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "ratclick_daemon"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ratclickd"
+path = "src/main.rs"
+
+[dependencies]
+ratclick-core.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true
+evdev.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zbus.workspace = true

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 dixonSolutions -->
+<component type="desktop-application">
+  <id>io.github.dixonsolutions.RatClick</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>RatClick</name>
+  <summary>Click the mouse for you, at a rate and for a time you choose</summary>
+
+  <description>
+    <p>
+      RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button
+      and how long the run should last, then start it from the window, from a
+      global keyboard shortcut, or from the command line.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Clicks per minute from a slow tap to a fast burst</li>
+      <li>Left, right or middle button</li>
+      <li>Endless runs, or a timed run that stops itself</li>
+      <li>A global toggle shortcut through GNOME, the bundled Shell extension, or keyd</li>
+      <li>A Quick Settings toggle and panel indicator, through the bundled GNOME Shell extension</li>
+      <li>A background service on the session bus, so the shortcut works without the window open</li>
+      <li>A scriptable command line, including machine-readable status output</li>
+    </ul>
+    <p>
+      The clicks come from a virtual pointer created through the kernel uinput
+      device, so they work the same under Wayland and X11. You need to be in
+      the input group; the bundled diagnostic command tells you whether you
+      already are.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.dixonsolutions.RatClick.desktop</launchable>
+
+  <provides>
+    <binary>ratclick</binary>
+    <binary>ratclick-gui</binary>
+    <dbus type="session">io.github.dixonsolutions.RatClick</dbus>
+  </provides>
+
+  <categories>
+    <category>Utility</category>
+    <category>Accessibility</category>
+  </categories>
+
+  <keywords>
+    <keyword>click</keyword>
+    <keyword>autoclick</keyword>
+    <keyword>clicker</keyword>
+    <keyword>mouse</keyword>
+    <keyword>macro</keyword>
+  </keywords>
+
+  <url type="homepage">https://github.com/dixonSolutions/ratclick</url>
+  <url type="bugtracker">https://github.com/dixonSolutions/ratclick/issues</url>
+  <url type="vcs-browser">https://github.com/dixonSolutions/ratclick</url>
+
+  <developer id="io.github.dixonsolutions">
+    <name>dixonSolutions</name>
+  </developer>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="0.1.0" date="2026-08-16">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

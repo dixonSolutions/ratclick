@@ -1,0 +1,24 @@
+[package]
+name = "ratclick-gui"
+description = "libadwaita front end for the RatClick auto-clicker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "ratclick-gui"
+path = "src/main.rs"
+
+[dependencies]
+ratclick-core.workspace = true
+
+adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+anyhow.workspace = true
+gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
+# The GUI drives D-Bus from a worker thread rather than an async runtime, so it
+# needs zbus's blocking API on top of the workspace defaults.
+zbus = { version = "5", default-features = false, features = ["tokio", "blocking-api"] }
+async-channel = "2.5"

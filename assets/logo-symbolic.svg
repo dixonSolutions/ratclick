@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!--
+    RatClick symbolic icon.
+
+    GNOME recolours symbolics, so this is deliberately a single path in a single
+    colour with no strokes, gradients or opacity. Everything is one `d`, with
+    the eyes and the hat brim wound the opposite way from the solid shapes so
+    the nonzero fill rule punches them out as holes.
+
+    Designed for 16px first. The click arcs from the full-colour logo are left
+    out on purpose: below 24px they collapse into an unreadable smudge, whereas
+    the silhouette — two ears, a round head, a pointed hat, two eye holes —
+    still reads.
+  -->
+  <path fill="#2e3436" d="
+    M 2.95 4.35
+    a 2.15 2.15 0 1 1 0.02 4.3
+    a 2.15 2.15 0 1 1 -0.02 -4.3
+    Z
+    M 13.05 4.35
+    a 2.15 2.15 0 1 1 0.02 4.3
+    a 2.15 2.15 0 1 1 -0.02 -4.3
+    Z
+    M 8 5.5
+    a 4.7 4.7 0 1 1 0 9.4
+    a 4.7 4.7 0 1 1 0 -9.4
+    Z
+    M 8 0.7
+    L 11.3 6.5
+    L 4.7 6.5
+    Z
+    M 4.95 5.6
+    L 4.95 6.6
+    L 11.05 6.6
+    L 11.05 5.6
+    Z
+    M 6.25 9.9
+    a 1.05 1.05 0 1 0 0.02 0
+    Z
+    M 9.75 9.9
+    a 1.05 1.05 0 1 0 0.02 0
+    Z
+  "/>
+</svg>

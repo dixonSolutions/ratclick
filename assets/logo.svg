@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="RatClick">
+  <title>RatClick</title>
+
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#deddda"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded-square app tile -->
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#tile)"/>
+  <rect x="33.5" y="33.5" width="445" height="445" rx="102.5" fill="none" stroke="#cdc7c2" stroke-width="3"/>
+
+  <!-- ============ rat + gnome hat ============ -->
+  <g transform="translate(44,36) scale(0.93)">
+
+    <!-- head -->
+    <path fill="#9a9996" d="M270 180
+      C344 180 396 236 396 300
+      C396 352 372 396 336 418
+      C318 429 294 436 270 436
+      C246 436 222 429 204 418
+      C168 396 144 352 144 300
+      C144 236 196 180 270 180 Z"/>
+
+    <!-- ears -->
+    <circle cx="158" cy="222" r="66" fill="#9a9996"/>
+    <circle cx="382" cy="222" r="66" fill="#9a9996"/>
+    <circle cx="158" cy="226" r="38" fill="#f8c4c4"/>
+    <circle cx="382" cy="226" r="38" fill="#f8c4c4"/>
+
+    <!-- gnome hat -->
+    <g transform="rotate(8 270 220)">
+      <path fill="#e01b24" d="M180 172 Q214 74 262 16 Q270 8 278 16 Q326 74 360 172 Z"/>
+      <path fill="#c01c28" d="M270 12.5 Q276 14 279 18 Q327 76 360 172 L306 172 Q298 80 270 12.5 Z"/>
+      <rect x="158" y="164" width="226" height="40" rx="12" fill="#f6f5f4"/>
+    </g>
+
+    <!-- muzzle -->
+    <ellipse cx="270" cy="384" rx="78" ry="46" fill="#cdc7c2"/>
+
+    <!-- eyes -->
+    <circle cx="222" cy="316" r="20" fill="#241f31"/>
+    <circle cx="318" cy="316" r="20" fill="#241f31"/>
+    <circle cx="229" cy="309" r="6.5" fill="#ffffff"/>
+    <circle cx="325" cy="309" r="6.5" fill="#ffffff"/>
+
+    <!-- nose + front teeth -->
+    <ellipse cx="270" cy="362" rx="23" ry="16" fill="#241f31"/>
+    <rect x="254.5" y="376" width="31" height="30" rx="9" fill="#f6f5f4" stroke="#77767b" stroke-width="3"/>
+    <path d="M270 379 V403" stroke="#77767b" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- whiskers -->
+    <g fill="none" stroke="#241f31" stroke-width="9" stroke-linecap="round">
+      <path d="M208 370 C170 362 140 356 110 348"/>
+      <path d="M206 394 C168 398 136 406 108 416"/>
+      <path d="M332 370 C370 362 400 356 430 348"/>
+      <path d="M334 394 C372 398 404 406 432 416"/>
+    </g>
+  </g>
+
+  <!-- ============ click / emitting arcs ============ -->
+  <g fill="none" stroke="#3584e4" stroke-width="20" stroke-linecap="round">
+    <path d="M109.2 191.9 A96 96 0 0 1 158.0 148.0"/>
+    <path d="M79.2 176.0 A130 130 0 0 1 145.3 116.5"/>
+    <path d="M49.2 160.0 A164 164 0 0 1 132.6 84.9"/>
+  </g>
+</svg>

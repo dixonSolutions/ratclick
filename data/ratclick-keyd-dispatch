@@ -1,0 +1,75 @@
+#!/bin/sh
+# Bridge a keyd binding into the logged-in user's session.
+#
+# keyd runs as root, so `command(...)` actions execute as root with no session
+# bus. RatClick's daemon lives on the *user's* session bus, so this script finds
+# whoever owns the active graphical session and re-enters it before running
+# `ratclick`.
+#
+# Installed at /usr/libexec/ratclick/ratclick-keyd-dispatch and referenced from
+# the managed block RatClick splices into /etc/keyd/*.conf.
+
+set -eu
+
+ACTION="${1:-toggle}"
+
+log() {
+    # keyd captures stderr into the journal under the keyd unit.
+    echo "ratclick-keyd-dispatch: $*" >&2
+}
+
+# When somebody runs this by hand as their own user, just do the thing.
+if [ "$(id -u)" -ne 0 ]; then
+    exec ratclick "$ACTION"
+fi
+
+# Find the active graphical session. `loginctl show-seat` is authoritative and
+# avoids parsing the human-readable table, which changes between systemd
+# versions.
+session=$(loginctl show-seat seat0 -p ActiveSession --value 2>/dev/null || true)
+
+if [ -z "$session" ]; then
+    # No seat0 (headless, or a multi-seat setup): fall back to the first session
+    # that is graphical and active.
+    for s in $(loginctl list-sessions --no-legend 2>/dev/null | awk '{print $1}'); do
+        state=$(loginctl show-session "$s" -p State --value 2>/dev/null || true)
+        type=$(loginctl show-session "$s" -p Type --value 2>/dev/null || true)
+        if [ "$state" = "active" ] && { [ "$type" = "wayland" ] || [ "$type" = "x11" ]; }; then
+            session="$s"
+            break
+        fi
+    done
+fi
+
+if [ -z "$session" ]; then
+    log "no active graphical session found; nothing to toggle"
+    exit 0
+fi
+
+uid=$(loginctl show-session "$session" -p User --value 2>/dev/null || true)
+user=$(loginctl show-session "$session" -p Name --value 2>/dev/null || true)
+
+if [ -z "$uid" ] || [ -z "$user" ]; then
+    log "could not resolve the user of session $session"
+    exit 1
+fi
+
+runtime="/run/user/$uid"
+if [ ! -S "$runtime/bus" ]; then
+    log "no session bus at $runtime/bus"
+    exit 1
+fi
+
+# setpriv drops to the user with their full supplementary groups, which matters
+# because `input` group membership is what lets the daemon open /dev/uinput.
+exec setpriv \
+    --reuid "$uid" \
+    --regid "$(id -g "$user")" \
+    --init-groups \
+    env \
+        HOME="$(getent passwd "$user" | cut -d: -f6)" \
+        USER="$user" \
+        LOGNAME="$user" \
+        XDG_RUNTIME_DIR="$runtime" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=$runtime/bus" \
+    ratclick "$ACTION"

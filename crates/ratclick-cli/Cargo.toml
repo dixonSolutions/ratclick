@@ -1,0 +1,21 @@
+[package]
+name = "ratclick-cli"
+description = "Command line interface for the RatClick auto-clicker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "ratclick"
+path = "src/main.rs"
+
+[dependencies]
+ratclick-core.workspace = true
+
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive", "wrap_help"] }
+tokio.workspace = true
+zbus.workspace = true

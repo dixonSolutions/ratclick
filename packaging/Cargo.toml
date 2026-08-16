@@ -1,0 +1,112 @@
+[package]
+name = "ratclick"
+# Kept to one short line: Debian uses `description` verbatim as the package
+# synopsis, and the prose belongs in extended-description below.
+description = "Configurable auto-clicker for GNOME"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish = false
+
+# No code lives here. This crate exists purely to give `cargo deb` and
+# `cargo generate-rpm` — both of which read `[package.metadata.*]` from a
+# *single* package — one place to describe the whole installation, instead of
+# four crates each describing a slice of it.
+[lib]
+name = "ratclick_packaging"
+path = "src/lib.rs"
+
+[dependencies]
+
+# ---------------------------------------------------------------------------
+# Shared staging layout
+# ---------------------------------------------------------------------------
+#
+# Both packagers read from `packaging/generated/`, which `scripts/build-packages.sh`
+# fills in. The tree mirrors `/usr`, split into two roots by file mode:
+#
+#   generated/exec/  -> installed 0755   (binaries, the keyd dispatch script)
+#   generated/data/  -> installed 0644   (units, rules, icons, docs, extension)
+#
+# Two mode groups is all the layout needs, and it keeps the manifest to two
+# asset entries. More importantly it is what makes the *optional* parts work:
+# the icon set and the GNOME Shell extension are produced by other people and
+# may not be present yet. The build script simply does not stage them, and
+# neither packager notices, because the globs below still match the files that
+# are always there. Listing the optional paths here instead would make
+# `cargo deb` hard-fail on a glob that matched nothing.
+#
+# Both tools resolve these relative paths against the working directory, so the
+# build script runs them from `packaging/`.
+
+# ---------------------------------------------------------------------------
+# Debian
+# ---------------------------------------------------------------------------
+[package.metadata.deb]
+name = "ratclick"
+maintainer = "dixonSolutions <noreply@github.com>"
+copyright = "2026, dixonSolutions"
+section = "utils"
+priority = "optional"
+extended-description = """
+RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button and \
+how long the run should last, then start it from the window, from a global \
+keyboard shortcut, or from the command line.
+
+The clicks come from a virtual pointer created through the kernel uinput \
+device, so they behave the same under Wayland and X11. Your user needs to be \
+in the `input` group; `ratclick doctor` will tell you whether it already is."""
+
+# Declared by hand rather than via `$auto`: the .deb is built on whatever
+# runner is to hand, and we do not want its exact library minor versions
+# baked into the dependency list.
+depends = "libadwaita-1-0, libgtk-4-1, libc6"
+recommends = "keyd"
+suggests = "gnome-shell"
+
+maintainer-scripts = "maintainer-scripts"
+
+assets = [
+    { source = "generated/exec/**/*", dest = "/usr/", mode = "755" },
+    { source = "generated/data/**/*", dest = "/usr/", mode = "644" },
+]
+
+# ---------------------------------------------------------------------------
+# RPM
+# ---------------------------------------------------------------------------
+[package.metadata.generate-rpm]
+name = "ratclick"
+summary = "Configurable auto-clicker for GNOME"
+description = """
+RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button and \
+how long the run should last, then start it from the window, from a global \
+keyboard shortcut, or from the command line.
+
+The clicks come from a virtual pointer created through the kernel uinput \
+device, so they behave the same under Wayland and X11. Your user needs to be \
+in the `input` group; `ratclick doctor` will tell you whether it already is."""
+license = "GPL-3.0-or-later"
+# The .rpm is built inside a fedora:latest container so that the ELF sonames it
+# is checked against are Fedora's. Dependency discovery is still off: the
+# requires below are the human-meaningful ones, and `find-requires` would
+# otherwise pin us to the exact build container's library set.
+auto-req = "disabled"
+
+assets = [
+    { source = "generated/exec/**/*", dest = "/usr/", mode = "755" },
+    { source = "generated/data/**/*", dest = "/usr/", mode = "644" },
+]
+
+post_install_script = "maintainer-scripts/rpm-post.sh"
+post_uninstall_script = "maintainer-scripts/rpm-postun.sh"
+
+[package.metadata.generate-rpm.requires]
+libadwaita = "*"
+gtk4 = "*"
+
+[package.metadata.generate-rpm.recommends]
+keyd = "*"

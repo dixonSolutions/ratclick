@@ -1,0 +1,12 @@
+/target
+/dist
+**/*.rs.bk
+*.deb
+*.rpm
+*.zip
+
+# Nested-session test scratch (see scripts/nested-session.sh)
+/.nested
+
+# Staging tree that scripts/build-packages.sh fills in for cargo-deb / cargo-generate-rpm
+/packaging/generated
