@@ -9,9 +9,19 @@
 //! `/etc/keyd`, and when several configs match a device only one of them wins.
 //! A fresh `ratclick.conf` with `[ids] *` would therefore lose to a pre-existing
 //! `default.conf` with the same wildcard and silently do nothing. So instead we
-//! splice a clearly delimited block into the `[main]` section of *every* config
-//! present, which means whichever config a given keyboard ends up using, our
-//! binding is in it. The markers make removal exact.
+//! append a clearly delimited block to *every* config present, which means
+//! whichever config a given keyboard ends up using, our binding is in it. The
+//! markers make removal exact.
+//!
+//! # Why the binding is a layer and not a prefixed key
+//!
+//! keyd does not accept modifier prefixes on the left of a mapping: `M-S-f12 =`
+//! is rejected with "not a valid key or alias". A modified shortcut has to be
+//! written as the bare key inside the layer named by its modifiers, so
+//! Super+Shift+F12 becomes `[shift+meta]` / `f12 = …`. That is also why the
+//! block is appended rather than inserted: it declares layer sections of its
+//! own, and dropping those into the middle of a file would silently swallow
+//! every following line of the user's config into our last layer.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -496,7 +506,7 @@ mod tests {
     #[test]
     fn round_trips_through_generate_and_parse() {
         let want = accel("<Control><Alt>F9");
-        let text = splice("[ids]\n*\n", &managed_block(&[want.clone()], "cmd"));
+        let text = splice("[ids]\n*\n", &managed_block(std::slice::from_ref(&want), "cmd"));
         let found = parse_config(&text, Path::new("/x.conf"));
 
         let ours: Vec<&Binding> = found.iter().filter(|b| b.ours).collect();

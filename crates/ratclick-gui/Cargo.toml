@@ -15,7 +15,15 @@ path = "src/main.rs"
 [dependencies]
 ratclick-core.workspace = true
 
-adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+# Feature gates are the *minimum* libadwaita/GTK this builds against, not the
+# version it runs on. Keep them at what a current LTS ships (Ubuntu 24.04 has
+# libadwaita 1.5 and GTK 4.14) so the package builds on the distributions people
+# actually install it on. `libadwaita-sys` reports too-old a system library as
+# "not found", which is a confusing way to fail — hence this note.
+#
+# Everything the GUI uses exists in 1.5: Dialog, AlertDialog and AboutDialog are
+# 1.5; NavigationView, ToolbarView, SpinRow and SwitchRow are 1.4.
+adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
 anyhow.workspace = true
 gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
 # The GUI drives D-Bus from a worker thread rather than an async runtime, so it
