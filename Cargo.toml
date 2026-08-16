@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
@@ -19,7 +19,10 @@ homepage = "https://github.com/dixonSolutions/ratclick"
 authors = ["dixonSolutions"]
 
 [workspace.dependencies]
-ratclick-core = { path = "crates/ratclick-core", version = "0.1.0" }
+# No version requirement: nothing here is published to crates.io, and pinning
+# one means every release bump has to be made in two places or the workspace
+# stops resolving.
+ratclick-core = { path = "crates/ratclick-core" }
 
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }

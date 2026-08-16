@@ -990,11 +990,11 @@ checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "ratclick"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "ratclick-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "ratclick-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "ratclick-daemon"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1031,7 +1031,7 @@ dependencies = [
 
 [[package]]
 name = "ratclick-gui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-channel",

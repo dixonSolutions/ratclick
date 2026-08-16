@@ -74,6 +74,23 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="0.2.0" date="2026-08-16">
+      <description>
+        <p>
+          Adds a visual effect at the pointer when clicking starts or stops,
+          drawn by the GNOME Shell extension and configurable per direction.
+        </p>
+        <p>
+          The configuration file can now be opened in an editor with
+          <code>ratclick config</code>, and is validated before it is accepted.
+        </p>
+        <p>
+          Adds a reset that undoes every setting and shortcut, and asks for
+          administrator rights when the keyd backend needs them instead of
+          failing.
+        </p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-08-16">
       <description>
         <p>First release.</p>
