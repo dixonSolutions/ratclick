@@ -506,7 +506,10 @@ mod tests {
     #[test]
     fn round_trips_through_generate_and_parse() {
         let want = accel("<Control><Alt>F9");
-        let text = splice("[ids]\n*\n", &managed_block(std::slice::from_ref(&want), "cmd"));
+        let text = splice(
+            "[ids]\n*\n",
+            &managed_block(std::slice::from_ref(&want), "cmd"),
+        );
         let found = parse_config(&text, Path::new("/x.conf"));
 
         let ours: Vec<&Binding> = found.iter().filter(|b| b.ours).collect();
