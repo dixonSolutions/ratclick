@@ -231,9 +231,13 @@ jobs:
 
           \`\`\`bash
           sudo install -d -m 0755 /etc/apt/keyrings
-          curl -fsSL https://dixonsolutions.github.io/ratclick/ratclick.asc | sudo tee /etc/apt/keyrings/ratclick.asc >/dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" | sudo tee /etc/apt/sources.list.d/ratclick.list
-          sudo apt update && sudo apt install ratclick
+          curl -fsSL -o /tmp/ratclick.asc https://dixonsolutions.github.io/ratclick/ratclick.asc \\
+            && grep -q 'BEGIN PGP PUBLIC KEY' /tmp/ratclick.asc \\
+            && sudo install -m 0644 /tmp/ratclick.asc /etc/apt/keyrings/ratclick.asc \\
+            && echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" \\
+               | sudo tee /etc/apt/sources.list.d/ratclick.list >/dev/null \\
+            && sudo apt update \\
+            && sudo apt install ratclick
           \`\`\`
 
           Fedora, from the dnf repository:

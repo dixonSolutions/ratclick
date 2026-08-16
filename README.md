@@ -15,15 +15,23 @@ cooperation required.
 ## Install
 
 ```bash
-curl -fsSL https://dixonsolutions.github.io/ratclick/ratclick.asc \
-  | sudo tee /etc/apt/keyrings/ratclick.asc >/dev/null
-echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" \
-  | sudo tee /etc/apt/sources.list.d/ratclick.list
-sudo apt update && sudo apt install ratclick
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL -o /tmp/ratclick.asc https://dixonsolutions.github.io/ratclick/ratclick.asc \
+  && grep -q 'BEGIN PGP PUBLIC KEY' /tmp/ratclick.asc \
+  && sudo install -m 0644 /tmp/ratclick.asc /etc/apt/keyrings/ratclick.asc \
+  && echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" \
+     | sudo tee /etc/apt/sources.list.d/ratclick.list >/dev/null \
+  && sudo apt update \
+  && sudo apt install ratclick
 ```
 
-The dnf equivalent, and how to install the `.deb`/`.rpm` directly from a
-release, are in [docs/install.md](docs/install.md).
+The `&&` chain matters: it writes the sources file only once the signing key is
+really in `/etc/apt/keyrings`, so a failed download leaves nothing behind rather
+than a repository `apt update` cannot verify.
+
+The dnf equivalent, what to do if `apt update` is already complaining, and how
+to install the `.deb`/`.rpm` directly from a release, are in
+[docs/install.md](docs/install.md).
 
 Then run `ratclick gui`. The first launch walks you through the four decisions
 that matter — rate, button, run length, shortcut — and nothing is written until
