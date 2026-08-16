@@ -6,7 +6,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk::glib;
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MAX_CPM, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::{ipc, shortcut};
 
 use crate::bridge::{Bridge, Cmd, Snapshot};
@@ -117,9 +117,11 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     // ---- Clicking -------------------------------------------------------
     let click_group = adw::PreferencesGroup::builder().title("Clicking").build();
 
-    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, MAX_CPM as f64, 10.0);
+    // No upper bound on speed; the widget still needs a finite ceiling, so
+    // give it one far past anything a human would type.
+    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, u32::MAX as f64, 10.0);
     cpm.set_title("Clicks per minute");
-    cpm.set_subtitle("600 is ten clicks a second");
+    cpm.set_subtitle("600 is ten clicks a second — no maximum");
 
     let button = adw::ComboRow::builder().title("Mouse button").build();
     button.set_model(Some(&string_list(BUTTONS.iter().map(|(_, l)| *l))));

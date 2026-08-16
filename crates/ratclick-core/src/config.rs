@@ -11,10 +11,6 @@ use crate::accel::Accel;
 /// Bumped only when a migration is needed; `load` refuses to read a newer file.
 pub const CONFIG_VERSION: u32 = 1;
 
-/// Fastest rate we will accept. 6000 CPM is 100 clicks/second — already far past
-/// what any application will process, and a useful backstop against a typo
-/// turning into an unresponsive desktop.
-pub const MAX_CPM: u32 = 6000;
 pub const MIN_CPM: u32 = 1;
 pub const DEFAULT_CPM: u32 = 600;
 
@@ -130,9 +126,10 @@ impl Default for ClickConfig {
 }
 
 impl ClickConfig {
-    /// Interval between clicks. Never zero, so the click loop cannot spin.
+    /// Interval between clicks. There is no upper bound on `cpm` — only a
+    /// floor at [`MIN_CPM`] so the division below can never be by zero.
     pub fn interval(&self) -> std::time::Duration {
-        let cpm = self.cpm.clamp(MIN_CPM, MAX_CPM) as u64;
+        let cpm = self.cpm.max(MIN_CPM) as u64;
         std::time::Duration::from_nanos(60_000_000_000 / cpm)
     }
 
@@ -274,10 +271,6 @@ impl Config {
             notes.push(format!("clicks per minute raised to {MIN_CPM}"));
             self.click.cpm = MIN_CPM;
         }
-        if self.click.cpm > MAX_CPM {
-            notes.push(format!("clicks per minute capped at {MAX_CPM}"));
-            self.click.cpm = MAX_CPM;
-        }
         if self.click.mode == ClickMode::Timed && self.click.duration_minutes == 0 {
             notes.push("timed duration raised to 1 minute".into());
             self.click.duration_minutes = 1;
@@ -360,11 +353,20 @@ mod tests {
     }
 
     #[test]
-    fn normalise_caps_runaway_cpm() {
+    fn normalise_leaves_high_cpm_uncapped() {
         let mut cfg = Config::default();
         cfg.click.cpm = 999_999;
         let notes = cfg.normalise();
-        assert_eq!(cfg.click.cpm, MAX_CPM);
+        assert_eq!(cfg.click.cpm, 999_999);
+        assert!(notes.is_empty());
+    }
+
+    #[test]
+    fn normalise_floors_zero_cpm() {
+        let mut cfg = Config::default();
+        cfg.click.cpm = 0;
+        let notes = cfg.normalise();
+        assert_eq!(cfg.click.cpm, MIN_CPM);
         assert!(!notes.is_empty());
     }
 

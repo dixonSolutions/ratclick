@@ -9,7 +9,7 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MAX_CPM, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::{ipc, shortcut};
 
 #[derive(Parser, Debug)]
@@ -433,10 +433,7 @@ fn apply_setting(cfg: &mut Config, key: &str, value: &str) -> Result<()> {
     match key.trim().to_ascii_lowercase().as_str() {
         "cpm" | "clicks-per-minute" => {
             let v: u32 = value.parse().context("cpm must be a whole number")?;
-            anyhow::ensure!(
-                (MIN_CPM..=MAX_CPM).contains(&v),
-                "cpm must be between {MIN_CPM} and {MAX_CPM}"
-            );
+            anyhow::ensure!(v >= MIN_CPM, "cpm must be at least {MIN_CPM}");
             cfg.click.cpm = v;
         }
         "button" => {
@@ -689,10 +686,11 @@ mod tests {
     }
 
     #[test]
-    fn cpm_is_range_checked() {
+    fn cpm_has_no_upper_bound() {
         let mut cfg = Config::default();
         assert!(apply_setting(&mut cfg, "cpm", "0").is_err());
-        assert!(apply_setting(&mut cfg, "cpm", "999999").is_err());
+        apply_setting(&mut cfg, "cpm", "999999").unwrap();
+        assert_eq!(cfg.click.cpm, 999_999);
         apply_setting(&mut cfg, "cpm", "1200").unwrap();
         assert_eq!(cfg.click.cpm, 1200);
     }
