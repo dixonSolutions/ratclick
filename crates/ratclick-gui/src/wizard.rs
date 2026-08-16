@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use adw::prelude::*;
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MAX_CPM, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::shortcut;
 
 use crate::capture;
@@ -110,9 +110,11 @@ fn speed_page(state: &Rc<State>) -> adw::NavigationPage {
 
     let cfg = state.config.borrow().clone();
 
-    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, MAX_CPM as f64, 10.0);
+    // No upper bound on speed; the widget still needs a finite ceiling, so
+    // give it one far past anything a human would type.
+    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, u32::MAX as f64, 10.0);
     cpm.set_title("Clicks per minute");
-    cpm.set_subtitle("600 is ten clicks a second");
+    cpm.set_subtitle("600 is ten clicks a second — no maximum");
     cpm.set_value(cfg.click.cpm as f64);
 
     let button = adw::ComboRow::builder().title("Mouse button").build();

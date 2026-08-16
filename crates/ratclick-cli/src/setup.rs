@@ -10,7 +10,7 @@ use std::io::{self, IsTerminal, Write};
 
 use anyhow::{Context, Result};
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MAX_CPM, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::shortcut;
 
 pub fn is_interactive() -> bool {
@@ -65,12 +65,12 @@ pub async fn run(existing: Config) -> Result<Config> {
 
     // ---- Clicking ------------------------------------------------------
     heading("1. How fast should it click?");
-    println!("  Clicks per minute. 600 is ten clicks a second; the maximum is {MAX_CPM}.");
+    println!("  Clicks per minute. 600 is ten clicks a second; there is no maximum.");
     cfg.click.cpm = loop {
         let raw = prompt("  Clicks per minute", &cfg.click.cpm.to_string())?;
         match raw.parse::<u32>() {
-            Ok(v) if (MIN_CPM..=MAX_CPM).contains(&v) => break v,
-            Ok(_) => println!("  Enter a number between {MIN_CPM} and {MAX_CPM}."),
+            Ok(v) if v >= MIN_CPM => break v,
+            Ok(_) => println!("  Enter a number of at least {MIN_CPM}."),
             Err(_) => println!("  That is not a number."),
         }
     };

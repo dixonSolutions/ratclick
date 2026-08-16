@@ -6,7 +6,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk::glib;
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MAX_CPM, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::{ipc, shortcut};
 
 use crate::bridge::{Bridge, Cmd, Snapshot};
@@ -59,7 +59,16 @@ struct Ui {
     service_row: adw::ActionRow,
     service_button: gtk::Button,
 
+    // Unsaved-changes bar
+    save_bar: gtk::ActionBar,
+    save_badge: gtk::Label,
+    changes_label: gtk::Label,
+
+    /// The config as edited in the widgets, not yet necessarily on disk.
     config: RefCell<Config>,
+    /// The config as last written to disk — the baseline `config` is diffed
+    /// against to decide whether there are unsaved changes.
+    saved: RefCell<Config>,
     bridge: Bridge,
     /// Set while pushing config values into widgets, so the change handlers do
     /// not write the file back and fight the update.
@@ -117,9 +126,11 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     // ---- Clicking -------------------------------------------------------
     let click_group = adw::PreferencesGroup::builder().title("Clicking").build();
 
-    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, MAX_CPM as f64, 10.0);
+    // No upper bound on speed; the widget still needs a finite ceiling, so
+    // give it one far past anything a human would type.
+    let cpm = adw::SpinRow::with_range(MIN_CPM as f64, u32::MAX as f64, 10.0);
     cpm.set_title("Clicks per minute");
-    cpm.set_subtitle("600 is ten clicks a second");
+    cpm.set_subtitle("600 is ten clicks a second — no maximum");
 
     let button = adw::ComboRow::builder().title("Mouse button").build();
     button.set_model(Some(&string_list(BUTTONS.iter().map(|(_, l)| *l))));
@@ -205,6 +216,32 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     service_group.add(&service_row);
     page.add(&service_group);
 
+    // ---- Unsaved-changes bar --------------------------------------------
+    // Hidden until something is actually edited; wired up in `wire_up`.
+    install_badge_css();
+    let save_badge = gtk::Label::new(Some("0"));
+    save_badge.add_css_class("rc-change-badge");
+
+    let changes_label = gtk::Label::new(Some("unsaved change"));
+    changes_label.add_css_class("dim-label");
+
+    let changes_box = gtk::Box::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .spacing(8)
+        .build();
+    changes_box.append(&save_badge);
+    changes_box.append(&changes_label);
+
+    let discard_button = gtk::Button::with_label("Discard");
+    let save_button = gtk::Button::with_label("Save & Restart");
+    save_button.add_css_class("suggested-action");
+
+    let save_bar = gtk::ActionBar::new();
+    save_bar.pack_start(&changes_box);
+    save_bar.pack_end(&save_button);
+    save_bar.pack_end(&discard_button);
+    save_bar.set_revealed(false);
+
     // ---- Chrome ---------------------------------------------------------
     let header = adw::HeaderBar::new();
     let menu = gio_menu();
@@ -218,6 +255,7 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
 
     let toolbar = adw::ToolbarView::new();
     toolbar.add_top_bar(&header);
+    toolbar.add_bottom_bar(&save_bar);
     toolbar.set_content(Some(&gtk::ScrolledWindow::builder().child(&page).build()));
     toasts.set_child(Some(&toolbar));
     window.set_content(Some(&toasts));
@@ -241,13 +279,17 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
         backend_hint,
         service_row,
         service_button: service_button.clone(),
+        save_bar,
+        save_badge,
+        changes_label,
+        saved: RefCell::new(config.clone()),
         config: RefCell::new(config),
         bridge,
         loading: Cell::new(false),
     });
 
     ui.load_into_widgets();
-    ui.wire_up(&set_button, &clear_button);
+    ui.wire_up(&set_button, &clear_button, &save_button, &discard_button);
     ui.watch_daemon();
 
     window
@@ -267,6 +309,31 @@ fn gio_menu() -> gtk::gio::Menu {
     menu.append(Some("Check Installation"), Some("app.doctor"));
     menu.append(Some("About RatClick"), Some("app.about"));
     menu
+}
+
+/// A small pill-shaped counter for the unsaved-changes bar. Libadwaita has no
+/// stock "badge" widget, so this is the one bit of custom CSS in the app.
+fn install_badge_css() {
+    let provider = gtk::CssProvider::new();
+    provider.load_from_data(
+        ".rc-change-badge {
+            background-color: @accent_bg_color;
+            color: @accent_fg_color;
+            font-weight: bold;
+            font-size: 0.85em;
+            min-width: 1.4em;
+            min-height: 1.4em;
+            padding: 0 0.35em;
+            border-radius: 999px;
+        }",
+    );
+    if let Some(display) = gtk::gdk::Display::default() {
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    }
 }
 
 impl Ui {
@@ -347,9 +414,15 @@ impl Ui {
         }
     }
 
-    fn save(self: &Rc<Self>) {
+    /// Write `config` to disk and restart the running click loop with it, if
+    /// any is running. Used both by settings that apply immediately (the
+    /// shortcut section) and by the explicit Save button.
+    ///
+    /// Returns whether the save actually happened, so callers that show their
+    /// own success toast do not report success on failure.
+    fn save(self: &Rc<Self>) -> bool {
         if self.loading.get() {
-            return;
+            return false;
         }
         let mut cfg = self.config.borrow_mut();
         cfg.setup_complete = true;
@@ -358,10 +431,59 @@ impl Ui {
         }
         if let Err(e) = cfg.save() {
             self.toast(&format!("Could not save settings: {e}"));
+            return false;
+        }
+        let saved = cfg.clone();
+        drop(cfg);
+        *self.saved.borrow_mut() = saved;
+        self.bridge.send(Cmd::Reload);
+        self.mark_dirty();
+        true
+    }
+
+    /// Number of top-level settings that differ between the edited config and
+    /// what is actually on disk.
+    fn changed_field_count(&self) -> usize {
+        let saved = self.saved.borrow();
+        let cur = self.config.borrow();
+        [
+            cur.click.cpm != saved.click.cpm,
+            cur.click.button != saved.click.button,
+            cur.click.mode != saved.click.mode,
+            cur.click.duration_minutes != saved.click.duration_minutes,
+            cur.start_clicking_on_launch != saved.start_clicking_on_launch,
+            cur.shortcut.backend != saved.shortcut.backend,
+            cur.shortcut.bindings != saved.shortcut.bindings,
+        ]
+        .into_iter()
+        .filter(|changed| *changed)
+        .count()
+    }
+
+    /// Recompute the unsaved-changes badge and show or hide the save bar.
+    /// Called after every edit instead of an immediate `save()` for settings
+    /// that should wait for an explicit Save.
+    fn mark_dirty(self: &Rc<Self>) {
+        if self.loading.get() {
             return;
         }
-        drop(cfg);
-        self.bridge.send(Cmd::Reload);
+        let n = self.changed_field_count();
+        self.save_badge.set_label(&n.to_string());
+        self.changes_label.set_label(if n == 1 {
+            "unsaved change"
+        } else {
+            "unsaved changes"
+        });
+        self.save_bar.set_revealed(n > 0);
+    }
+
+    /// Throw away edits since the last save and put the widgets back to
+    /// match what is on disk.
+    fn discard(self: &Rc<Self>) {
+        *self.config.borrow_mut() = self.saved.borrow().clone();
+        self.load_into_widgets();
+        self.mark_dirty();
+        self.toast("Changes discarded");
     }
 
     fn toast(&self, text: &str) {
@@ -370,14 +492,23 @@ impl Ui {
 
     // ---- signals ---------------------------------------------------------
 
-    fn wire_up(self: &Rc<Self>, set_button: &gtk::Button, clear_button: &gtk::Button) {
+    fn wire_up(
+        self: &Rc<Self>,
+        set_button: &gtk::Button,
+        clear_button: &gtk::Button,
+        save_button: &gtk::Button,
+        discard_button: &gtk::Button,
+    ) {
+        // These four settings are batched: edits only update the in-memory
+        // config and the unsaved-changes bar, they do not touch disk or the
+        // running service until Save is pressed.
         let ui = self.clone();
         self.cpm.connect_value_notify(move |row| {
             if ui.loading.get() {
                 return;
             }
             ui.config.borrow_mut().click.cpm = row.value().round() as u32;
-            ui.save();
+            ui.mark_dirty();
         });
 
         let ui = self.clone();
@@ -388,7 +519,7 @@ impl Ui {
             let idx = row.selected() as usize;
             if let Some((b, _)) = BUTTONS.get(idx) {
                 ui.config.borrow_mut().click.button = *b;
-                ui.save();
+                ui.mark_dirty();
             }
         });
 
@@ -404,7 +535,7 @@ impl Ui {
                 ClickMode::Endless
             };
             ui.duration_group.set_visible(timed);
-            ui.save();
+            ui.mark_dirty();
         });
 
         for row in [&self.hours, &self.minutes] {
@@ -425,7 +556,7 @@ impl Ui {
                 } else {
                     ui.config.borrow_mut().click.set_duration_hm(h, m);
                 }
-                ui.save();
+                ui.mark_dirty();
             });
         }
 
@@ -435,7 +566,7 @@ impl Ui {
                 return;
             }
             ui.config.borrow_mut().start_clicking_on_launch = row.is_active();
-            ui.save();
+            ui.mark_dirty();
         });
 
         let ui = self.clone();
@@ -486,6 +617,18 @@ impl Ui {
             } else {
                 ui.bridge.send(Cmd::StartDaemon);
             }
+        });
+
+        let ui = self.clone();
+        save_button.connect_clicked(move |_| {
+            if ui.save() {
+                ui.toast("Saved — the service has been restarted with your changes");
+            }
+        });
+
+        let ui = self.clone();
+        discard_button.connect_clicked(move |_| {
+            ui.discard();
         });
     }
 
