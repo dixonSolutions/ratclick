@@ -44,6 +44,13 @@ command -v gpg >/dev/null 2>&1 || die "gpg is missing"
 SITE="$1"
 shift
 
+# Resolve to an absolute path before anything changes directory. apt-ftparchive
+# has to run from inside the repo root so the paths it writes into Release are
+# relative to it, and after that `cd` a relative $SITE would point at a
+# directory that does not exist.
+mkdir -p "$SITE"
+SITE="$(cd "$SITE" && pwd)"
+
 REPO="$SITE/apt"
 POOL="$REPO/pool/$COMPONENT/r/ratclick"
 mkdir -p "$POOL"
