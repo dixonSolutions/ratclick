@@ -9,7 +9,7 @@ use std::process::Command;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, Effect, ShortcutBackend, MIN_CPM};
 use ratclick_core::{ipc, shortcut};
 
 #[derive(Parser, Debug)]
@@ -48,9 +48,11 @@ enum Cmd {
     /// Start, stop and inspect the background service.
     #[command(subcommand)]
     Daemon(DaemonCmd),
-    /// Read and change settings.
-    #[command(subcommand)]
-    Config(ConfigCmd),
+    /// Open the configuration file in your editor. See `config --help` for more.
+    Config {
+        #[command(subcommand)]
+        action: Option<ConfigCmd>,
+    },
     /// Manage the global toggle shortcut.
     #[command(subcommand)]
     Shortcut(ShortcutCmd),
@@ -74,11 +76,15 @@ enum DaemonCmd {
 
 #[derive(Subcommand, Debug)]
 enum ConfigCmd {
-    /// Print the current configuration.
+    /// Open the configuration file in $VISUAL / $EDITOR. This is the default.
+    Edit,
+    /// Print the configuration file exactly as it is on disk.
+    Read,
+    /// Print the configuration as a readable summary.
     Show,
     /// Print the path of the configuration file.
     Path,
-    /// Change a setting.
+    /// Change a single setting.
     Set(ConfigSet),
     /// Delete the configuration, so the next run starts the wizard again.
     Reset {
@@ -90,9 +96,11 @@ enum ConfigCmd {
 
 #[derive(Args, Debug)]
 struct ConfigSet {
-    /// One of: cpm, button, mode, duration, hours, minutes, autostart
+    /// cpm, button, mode, duration, hours, minutes, autostart,
+    /// effects, effect-on, effect-off
     key: String,
-    /// The new value. `duration` accepts `90`, `1h30m` or `1:30`.
+    /// The new value. `duration` accepts `90`, `1h30m` or `1:30`;
+    /// `effect-on`/`effect-off` accept none, ripple, pulse or logo.
     value: String,
 }
 
@@ -144,21 +152,18 @@ async fn main() {
 async fn run() -> Result<()> {
     let cli = Cli::parse();
 
-    // No subcommand: open the GUI if there is a display, otherwise show help.
-    let command = match cli.command {
-        Some(c) => c,
-        None => {
-            if std::env::var_os("WAYLAND_DISPLAY").is_some()
-                || std::env::var_os("DISPLAY").is_some()
-            {
-                Cmd::Gui
-            } else {
-                use clap::CommandFactory;
-                Cli::command().print_help()?;
-                println!();
-                return Ok(());
-            }
-        }
+    // No subcommand prints help — always, whether or not there is a display.
+    //
+    // Opening a window from a bare `ratclick` was the earlier behaviour and it
+    // is the wrong default for a command: someone typing the name to find out
+    // what it does should get an answer in the terminal, not a window. The GUI
+    // has an explicit verb (`ratclick gui`) and its own binary that the desktop
+    // entry launches directly.
+    let Some(command) = cli.command else {
+        use clap::CommandFactory;
+        Cli::command().print_help()?;
+        println!();
+        return Ok(());
     };
 
     match command {
@@ -193,7 +198,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         Cmd::Daemon(sub) => daemon(sub).await,
-        Cmd::Config(sub) => config_cmd(sub).await,
+        Cmd::Config { action } => config_cmd(action.unwrap_or(ConfigCmd::Edit)).await,
         Cmd::Shortcut(sub) => shortcut_cmd(sub).await,
         Cmd::Doctor => doctor::run().await,
     }
@@ -298,8 +303,7 @@ async fn daemon(sub: DaemonCmd) -> Result<()> {
                 println!("already running");
                 return Ok(());
             }
-            client::spawn_daemon()?;
-            client::wait_until_up(std::time::Duration::from_secs(5)).await?;
+            client::start_daemon().await?;
             println!("started");
             Ok(())
         }
@@ -355,8 +359,125 @@ fn exec_replacing(path: &std::path::Path, args: &[&str]) -> std::io::Error {
     Command::new(path).args(args).exec()
 }
 
+/// Which editor to open the config in.
+///
+/// `$VISUAL` then `$EDITOR` is the long-standing convention and the only way to
+/// respect someone who uses vim or helix; hard-coding nano would override a
+/// preference they have already expressed. nano is the fallback because it is
+/// the friendlier choice for anyone who has never set either variable, and vi
+/// backs that up since it is the one editor POSIX guarantees.
+fn preferred_editor() -> String {
+    for var in ["VISUAL", "EDITOR"] {
+        if let Some(v) = std::env::var_os(var) {
+            let v = v.to_string_lossy().trim().to_string();
+            if !v.is_empty() {
+                return v;
+            }
+        }
+    }
+    for candidate in ["nano", "vi"] {
+        if which(candidate).is_some() {
+            return candidate.to_string();
+        }
+    }
+    "nano".to_string()
+}
+
+fn which(bin: &str) -> Option<std::path::PathBuf> {
+    std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths)
+            .map(|d| d.join(bin))
+            .find(|p| p.is_file())
+    })
+}
+
+/// Open the config in an editor, then refuse to accept a file that will not parse.
+///
+/// Saving broken TOML would leave RatClick unable to start, and the mistake
+/// would only surface later somewhere confusing — so validate on the way out
+/// and offer to go straight back in.
+async fn edit_config() -> Result<()> {
+    let path = Config::path()?;
+
+    // Materialise the defaults first, so the editor opens a file with every key
+    // visible rather than an empty buffer.
+    if !path.exists() {
+        Config::default().save_to(&path)?;
+        println!("created {}", path.display());
+    }
+    let before = std::fs::read_to_string(&path).unwrap_or_default();
+
+    let editor = preferred_editor();
+    loop {
+        // Through the shell, so `EDITOR="code -w"` and friends work.
+        let status = Command::new("sh")
+            .arg("-c")
+            .arg(format!("{editor} \"$1\"",))
+            .arg("sh")
+            .arg(&path)
+            .status()
+            .with_context(|| format!("launching editor `{editor}`"))?;
+        if !status.success() {
+            eprintln!("ratclick: {editor} exited with {status}; leaving the file alone");
+        }
+
+        match Config::load_from(&path) {
+            Ok(mut cfg) => {
+                for note in cfg.normalise() {
+                    println!("note: {note}");
+                }
+                let after = std::fs::read_to_string(&path).unwrap_or_default();
+                if after == before {
+                    println!("no changes");
+                    return Ok(());
+                }
+                // Write the normalised form back so what is on disk is exactly
+                // what RatClick is using.
+                cfg.save_to(&path)?;
+                client::nudge_reload().await;
+                println!("saved {}", path.display());
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("\n\x1b[31mThat configuration is not valid:\x1b[0m {e:#}\n");
+                if !setup::is_interactive() {
+                    anyhow::bail!("refusing to use an invalid configuration");
+                }
+                if !ask_yes_no("Open the editor again to fix it?")? {
+                    println!("left {} as you saved it", path.display());
+                    return Ok(());
+                }
+            }
+        }
+    }
+}
+
 async fn config_cmd(sub: ConfigCmd) -> Result<()> {
     match sub {
+        ConfigCmd::Edit => edit_config().await,
+        ConfigCmd::Read => {
+            let path = Config::path()?;
+            // Printing the bytes ourselves rather than shelling out to `cat`:
+            // same output, one less process, and it works if `cat` is not on
+            // PATH. The point of the command is the raw file, not the tool.
+            match std::fs::read_to_string(&path) {
+                Ok(body) => {
+                    print!("{body}");
+                    if !body.ends_with('\n') {
+                        println!();
+                    }
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    eprintln!("ratclick: no configuration yet at {}", path.display());
+                    eprintln!(
+                        "Run `ratclick setup`, `ratclick gui` or `ratclick config` to make one."
+                    );
+                    std::process::exit(1);
+                }
+                Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
+            }
+            Ok(())
+        }
         ConfigCmd::Path => {
             println!("{}", Config::path()?.display());
             Ok(())
@@ -376,6 +497,12 @@ async fn config_cmd(sub: ConfigCmd) -> Result<()> {
                 );
             }
             println!("autostart   {}", cfg.start_clicking_on_launch);
+            println!(
+                "effects     {}  (on: {}, off: {})",
+                if cfg.effects.enabled { "on" } else { "off" },
+                cfg.effects.on.as_str(),
+                cfg.effects.off.as_str()
+            );
             println!("backend     {}", cfg.shortcut.backend.as_str());
             if cfg.shortcut.bindings.is_empty() {
                 println!("shortcut    (none)");
@@ -464,17 +591,34 @@ fn apply_setting(cfg: &mut Config, key: &str, value: &str) -> Result<()> {
             cfg.click.set_duration_hm(h, m);
             cfg.click.mode = ClickMode::Timed;
         }
+        "effects" => {
+            cfg.effects.enabled = parse_bool(value)?;
+        }
+        "effect-on" | "effect_on" => {
+            cfg.effects.on = Effect::from_str_opt(value)
+                .context("effect-on must be none, ripple, pulse or logo")?;
+        }
+        "effect-off" | "effect_off" => {
+            cfg.effects.off = Effect::from_str_opt(value)
+                .context("effect-off must be none, ripple, pulse or logo")?;
+        }
         "autostart" | "start-on-launch" => {
-            cfg.start_clicking_on_launch = matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            );
+            cfg.start_clicking_on_launch = parse_bool(value)?;
         }
         other => anyhow::bail!(
-            "unknown setting `{other}` — try cpm, button, mode, duration, hours, minutes or autostart"
+            "unknown setting `{other}` — try cpm, button, mode, duration, hours, minutes, \
+             autostart, effects, effect-on or effect-off"
         ),
     }
     Ok(())
+}
+
+fn parse_bool(value: &str) -> Result<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" | "enabled" => Ok(true),
+        "0" | "false" | "no" | "off" | "disabled" => Ok(false),
+        other => anyhow::bail!("expected on or off, got `{other}`"),
+    }
 }
 
 /// Accept `90`, `1h30m`, `1h`, `30m` or `1:30`.
@@ -711,6 +855,50 @@ mod tests {
     }
 
     #[test]
+    fn effect_settings_are_accepted() {
+        let mut cfg = Config::default();
+        apply_setting(&mut cfg, "effect-on", "logo").unwrap();
+        apply_setting(&mut cfg, "effect-off", "none").unwrap();
+        apply_setting(&mut cfg, "effects", "off").unwrap();
+        assert_eq!(cfg.effects.on, Effect::Logo);
+        assert_eq!(cfg.effects.off, Effect::None);
+        assert!(!cfg.effects.enabled);
+
+        assert!(apply_setting(&mut cfg, "effect-on", "sparkle").is_err());
+        assert!(apply_setting(&mut cfg, "effects", "maybe").is_err());
+    }
+
+    #[test]
+    fn booleans_accept_the_usual_spellings() {
+        for yes in ["1", "true", "yes", "on", "ENABLED"] {
+            assert!(parse_bool(yes).unwrap(), "{yes}");
+        }
+        for no in ["0", "false", "no", "off", "Disabled"] {
+            assert!(!parse_bool(no).unwrap(), "{no}");
+        }
+        assert!(parse_bool("perhaps").is_err());
+    }
+
+    #[test]
+    fn a_bare_invocation_is_valid_and_carries_no_subcommand() {
+        // It prints help rather than opening a window; the parse just has to
+        // accept it.
+        let cli = Cli::try_parse_from(["ratclick"]).unwrap();
+        assert!(cli.command.is_none());
+    }
+
+    #[test]
+    fn config_takes_an_optional_subcommand() {
+        let bare = Cli::try_parse_from(["ratclick", "config"]).unwrap();
+        assert!(matches!(bare.command, Some(Cmd::Config { action: None })));
+
+        for sub in ["read", "show", "path", "edit"] {
+            Cli::try_parse_from(["ratclick", "config", sub])
+                .unwrap_or_else(|e| panic!("config {sub} failed: {e}"));
+        }
+    }
+
+    #[test]
     fn cli_parses_the_documented_invocations() {
         use clap::Parser;
         for args in [
@@ -719,6 +907,8 @@ mod tests {
             vec!["ratclick", "status", "--porcelain"],
             vec!["ratclick", "daemon", "restart"],
             vec!["ratclick", "config", "set", "cpm", "900"],
+            vec!["ratclick", "config", "read"],
+            vec!["ratclick", "config", "set", "effect-on", "logo"],
             vec!["ratclick", "shortcut", "set", "<Super>F9", "--force"],
             vec![
                 "ratclick",

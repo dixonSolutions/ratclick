@@ -88,7 +88,10 @@ impl Service {
     ///
     /// A run already in progress is restarted with the new settings so that a
     /// CPM change takes effect immediately instead of at the next toggle.
-    async fn reload_config(&self) -> zbus::fdo::Result<()> {
+    async fn reload_config(
+        &self,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+    ) -> zbus::fdo::Result<()> {
         let mut fresh = Config::load().map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
         fresh.normalise();
         *self.config.write().expect("config poisoned") = fresh.clone();
@@ -98,6 +101,16 @@ impl Service {
                 .start_clicking(&fresh.click)
                 .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
         }
+
+        // The Shell extension caches the effect settings and only re-reads them
+        // on PropertiesChanged, so a reload has to announce them or the user
+        // would see the old effect until the next login.
+        let _ = self.cpm_changed(&emitter).await;
+        let _ = self.mode_changed(&emitter).await;
+        let _ = self.effects_enabled_changed(&emitter).await;
+        let _ = self.effect_on_changed(&emitter).await;
+        let _ = self.effect_off_changed(&emitter).await;
+
         tracing::info!("configuration reloaded");
         Ok(())
     }
@@ -131,6 +144,40 @@ impl Service {
     #[zbus(property)]
     async fn version(&self) -> String {
         ratclick_core::VERSION.to_string()
+    }
+
+    /// Master switch for the toggle effects the Shell extension draws.
+    #[zbus(property)]
+    async fn effects_enabled(&self) -> bool {
+        self.config.read().expect("config poisoned").effects.enabled
+    }
+
+    /// Effect to draw when clicking starts: `none`, `ripple`, `pulse` or `logo`.
+    ///
+    /// The master switch is folded in here rather than left to the caller, so
+    /// the extension only has to look at one value per transition and cannot
+    /// get the two out of step.
+    #[zbus(property)]
+    async fn effect_on(&self) -> String {
+        self.config
+            .read()
+            .expect("config poisoned")
+            .effects
+            .effective_on()
+            .as_str()
+            .to_string()
+    }
+
+    /// Effect to draw when clicking stops.
+    #[zbus(property)]
+    async fn effect_off(&self) -> String {
+        self.config
+            .read()
+            .expect("config poisoned")
+            .effects
+            .effective_off()
+            .as_str()
+            .to_string()
     }
 
     #[zbus(signal)]

@@ -63,8 +63,7 @@ pub async fn connect_or_start() -> Result<RatClickProxy<'static>> {
         return Ok(proxy);
     }
 
-    spawn_daemon()?;
-    wait_until_up(Duration::from_secs(5)).await?;
+    start_daemon().await?;
 
     let proxy = connect().await?;
     proxy
@@ -74,7 +73,26 @@ pub async fn connect_or_start() -> Result<RatClickProxy<'static>> {
     Ok(proxy)
 }
 
-pub use ratclick_core::daemon::{spawn as spawn_daemon, systemd_unit_exists};
+pub use ratclick_core::daemon::systemd_unit_exists;
+
+/// Start the daemon and wait for it to reach *this* session bus.
+///
+/// systemd may have started it against a different bus (its user manager keeps
+/// its own `DBUS_SESSION_BUS_ADDRESS`), so if the name does not appear here we
+/// launch the binary ourselves, which inherits our environment.
+pub async fn start_daemon() -> Result<()> {
+    use ratclick_core::daemon::{self, Launched};
+
+    let how = daemon::spawn()?;
+    if wait_until_up(Duration::from_secs(3)).await.is_ok() {
+        return Ok(());
+    }
+    if how == Launched::Systemd {
+        daemon::spawn_direct()?;
+        return wait_until_up(Duration::from_secs(5)).await;
+    }
+    anyhow::bail!("ratclickd did not appear on the session bus")
+}
 
 /// Poll the bus until the daemon appears, or give up.
 pub async fn wait_until_up(timeout: Duration) -> Result<()> {

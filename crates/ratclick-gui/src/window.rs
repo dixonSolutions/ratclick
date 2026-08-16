@@ -6,7 +6,7 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk::glib;
 use ratclick_core::accel::Accel;
-use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
+use ratclick_core::config::{Button, ClickMode, Config, Effect, ShortcutBackend, MIN_CPM};
 use ratclick_core::{ipc, shortcut};
 
 use crate::bridge::{Bridge, Cmd, Snapshot};
@@ -22,6 +22,9 @@ const BUTTONS: &[(Button, &str)] = &[
     (Button::Right, "Right"),
     (Button::Middle, "Middle"),
 ];
+
+/// Order shown in the drop-downs; index maps straight to the combo row.
+const EFFECTS: &[Effect] = Effect::ALL;
 
 const BACKENDS: &[(ShortcutBackend, &str)] = &[
     (ShortcutBackend::Gnome, "GNOME keyboard shortcut"),
@@ -54,6 +57,12 @@ struct Ui {
     backend: adw::ComboRow,
     shortcut_row: adw::ActionRow,
     backend_hint: adw::ActionRow,
+
+    // Effects
+    effects_enabled: adw::SwitchRow,
+    effect_on: adw::ComboRow,
+    effect_off: adw::ComboRow,
+    effect_rows: adw::PreferencesGroup,
 
     // Service
     service_row: adw::ActionRow,
@@ -199,6 +208,39 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     shortcut_group.add(&shortcut_row);
     page.add(&shortcut_group);
 
+    // ---- Effects --------------------------------------------------------
+    let effects_group = adw::PreferencesGroup::builder()
+        .title("Toggle effect")
+        .description(
+            "A flourish drawn at the pointer when clicking starts or stops. \
+             Needs the RatClick GNOME Shell extension.",
+        )
+        .build();
+
+    let effects_enabled = adw::SwitchRow::builder()
+        .title("Show an effect when toggling")
+        .build();
+    effects_group.add(&effects_enabled);
+
+    // Separate group so both drop-downs can be hidden together when the master
+    // switch is off, without leaving a stranded header.
+    let effect_rows = adw::PreferencesGroup::new();
+    let effect_on = adw::ComboRow::builder()
+        .title("When clicking starts")
+        .subtitle("Drawn in green")
+        .build();
+    effect_on.set_model(Some(&string_list(EFFECTS.iter().map(|e| e.label()))));
+    let effect_off = adw::ComboRow::builder()
+        .title("When clicking stops")
+        .subtitle("Drawn in red")
+        .build();
+    effect_off.set_model(Some(&string_list(EFFECTS.iter().map(|e| e.label()))));
+    effect_rows.add(&effect_on);
+    effect_rows.add(&effect_off);
+
+    page.add(&effects_group);
+    page.add(&effect_rows);
+
     // ---- Service --------------------------------------------------------
     let service_group = adw::PreferencesGroup::builder()
         .title("Background service")
@@ -215,6 +257,23 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     service_row.add_suffix(&service_button);
     service_group.add(&service_row);
     page.add(&service_group);
+
+    // ---- Danger zone ----------------------------------------------------
+    let danger_group = adw::PreferencesGroup::builder()
+        .title("Danger zone")
+        .build();
+    let reset_row = adw::ActionRow::builder()
+        .title("Reset RatClick")
+        .subtitle("Delete all settings and unbind the shortcut")
+        .build();
+    let reset_button = gtk::Button::builder()
+        .label("Reset…")
+        .valign(gtk::Align::Center)
+        .build();
+    reset_button.add_css_class("destructive-action");
+    reset_row.add_suffix(&reset_button);
+    danger_group.add(&reset_row);
+    page.add(&danger_group);
 
     // ---- Unsaved-changes bar --------------------------------------------
     // Hidden until something is actually edited; wired up in `wire_up`.
@@ -277,6 +336,10 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
         backend: backend.clone(),
         shortcut_row,
         backend_hint,
+        effects_enabled: effects_enabled.clone(),
+        effect_on: effect_on.clone(),
+        effect_off: effect_off.clone(),
+        effect_rows,
         service_row,
         service_button: service_button.clone(),
         save_bar,
@@ -289,7 +352,13 @@ pub fn build(app: &adw::Application, config: Config) -> adw::ApplicationWindow {
     });
 
     ui.load_into_widgets();
-    ui.wire_up(&set_button, &clear_button, &save_button, &discard_button);
+    ui.wire_up(
+        &set_button,
+        &clear_button,
+        &save_button,
+        &discard_button,
+        &reset_button,
+    );
     ui.watch_daemon();
 
     window
@@ -366,6 +435,21 @@ impl Ui {
                 .position(|(b, _)| *b == cfg.shortcut.backend)
                 .unwrap_or(0) as u32,
         );
+
+        self.effects_enabled.set_active(cfg.effects.enabled);
+        self.effect_on.set_selected(
+            EFFECTS
+                .iter()
+                .position(|e| *e == cfg.effects.on)
+                .unwrap_or(0) as u32,
+        );
+        self.effect_off.set_selected(
+            EFFECTS
+                .iter()
+                .position(|e| *e == cfg.effects.off)
+                .unwrap_or(0) as u32,
+        );
+        self.effect_rows.set_visible(cfg.effects.enabled);
 
         self.duration_group
             .set_visible(cfg.click.mode == ClickMode::Timed);
@@ -498,7 +582,43 @@ impl Ui {
         clear_button: &gtk::Button,
         save_button: &gtk::Button,
         discard_button: &gtk::Button,
+        reset_button: &gtk::Button,
     ) {
+        let ui = self.clone();
+        self.effects_enabled.connect_active_notify(move |row| {
+            if ui.loading.get() {
+                return;
+            }
+            let on = row.is_active();
+            ui.config.borrow_mut().effects.enabled = on;
+            ui.effect_rows.set_visible(on);
+            ui.save();
+        });
+
+        for (row, is_on) in [(&self.effect_on, true), (&self.effect_off, false)] {
+            let ui = self.clone();
+            row.connect_selected_notify(move |row| {
+                if ui.loading.get() {
+                    return;
+                }
+                let Some(effect) = EFFECTS.get(row.selected() as usize).copied() else {
+                    return;
+                };
+                {
+                    let mut cfg = ui.config.borrow_mut();
+                    if is_on {
+                        cfg.effects.on = effect;
+                    } else {
+                        cfg.effects.off = effect;
+                    }
+                }
+                ui.save();
+            });
+        }
+
+        let ui = self.clone();
+        reset_button.connect_clicked(move |_| ui.confirm_reset());
+
         // These four settings are batched: edits only update the in-memory
         // config and the unsaved-changes bar, they do not touch disk or the
         // running service until Save is pressed.
@@ -687,13 +807,75 @@ impl Ui {
         }
     }
 
+    /// Confirm, then undo everything RatClick has done to this account.
+    fn confirm_reset(self: &Rc<Self>) {
+        let dialog = adw::AlertDialog::new(
+            Some("Reset RatClick?"),
+            Some(
+                "This deletes your settings — click rate, run length, effects — and unbinds the \
+                 toggle shortcut from every backend.\n\nRatClick itself stays installed, and the \
+                 next time you open it you will be taken through setup again. This cannot be \
+                 undone.",
+            ),
+        );
+        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("reset", "Reset Everything");
+        dialog.set_response_appearance("reset", adw::ResponseAppearance::Destructive);
+        // Cancel on Escape and as the default, so a stray Return cannot wipe
+        // somebody's configuration.
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+
+        let ui = self.clone();
+        dialog.connect_response(None, move |_, response| {
+            if response != "reset" {
+                return;
+            }
+            ui.perform_reset();
+        });
+        dialog.present(Some(&self.window));
+    }
+
+    fn perform_reset(self: &Rc<Self>) {
+        // Stop clicking first: leaving the engine running with no config to
+        // describe it would be the one genuinely confusing outcome.
+        self.bridge.send(Cmd::StopDaemon);
+
+        let (done, failed) = ratclick_core::reset_all();
+        for line in &failed {
+            self.toast(line);
+        }
+
+        // keyd lives in /etc, so its removal needs root; offer that rather than
+        // silently leaving a live shortcut behind.
+        if !shortcut::keyd::installed().is_empty() {
+            self.escalate_keyd_verb("clear", "the keyd shortcut still needs removing");
+        }
+
+        *self.config.borrow_mut() = Config::default();
+        self.load_into_widgets();
+
+        if failed.is_empty() {
+            self.toast(&format!("RatClick has been reset ({} item(s))", done.len()));
+        }
+    }
+
     /// Ask for admin rights and re-run the keyd installation as root.
+    /// Ask for admin rights and run one privileged `ratclick` subcommand.
+    ///
+    /// `verb` is `apply` to install the keyd binding or `clear` to remove it;
+    /// both write to /etc/keyd, which the session user cannot do.
     fn escalate_keyd(self: &Rc<Self>, why: &str) {
+        self.escalate_keyd_verb("apply", why);
+    }
+
+    fn escalate_keyd_verb(self: &Rc<Self>, verb: &'static str, why: &str) {
+        let action = if verb == "clear" { "remove" } else { "install" };
         let dialog = adw::AlertDialog::new(
             Some("Administrator access needed"),
             Some(&format!(
                 "keyd shortcuts live in /etc/keyd, so RatClick needs to run one command as \
-                 root to install them.\n\n{why}"
+                 root to {action} them.\n\n{why}"
             )),
         );
         dialog.add_response("cancel", "Cancel");
@@ -706,13 +888,22 @@ impl Ui {
             if response != "ok" {
                 return;
             }
+            // pkexec scrubs the environment, so the config location has to be
+            // passed through: root's own config is not the one in play.
+            let config = Config::path().unwrap_or_default();
             match std::process::Command::new("pkexec")
-                .args(["ratclick", "shortcut", "apply"])
+                .arg("env")
+                .arg(format!("RATCLICK_CONFIG={}", config.display()))
+                .args(["ratclick", "shortcut", verb])
                 .status()
             {
                 Ok(s) if s.success() => {
                     ui.refresh_shortcut_row();
-                    ui.toast("keyd shortcut installed");
+                    ui.toast(if verb == "clear" {
+                        "keyd shortcut removed"
+                    } else {
+                        "keyd shortcut installed"
+                    });
                 }
                 Ok(_) => ui.toast("The privileged step was cancelled or failed"),
                 Err(e) => ui.toast(&format!("Could not run pkexec: {e}")),
@@ -800,7 +991,7 @@ pub fn present_about(parent: &impl IsA<gtk::Widget>) {
         .version(ratclick_core::VERSION)
         .website("https://github.com/dixonSolutions/ratclick")
         .issue_url("https://github.com/dixonSolutions/ratclick/issues")
-        .license_type(gtk::License::Gpl30)
+        .license_type(gtk::License::MitX11)
         .comments("A configurable auto-clicker for GNOME.")
         .build();
     about.present(Some(parent.as_ref()));

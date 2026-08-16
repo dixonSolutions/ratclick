@@ -153,6 +153,101 @@ impl ClickConfig {
     }
 }
 
+/// A visual flourish drawn at the pointer when clicking starts or stops.
+///
+/// Only the compositor can draw an overlay on Wayland, so these are rendered by
+/// the GNOME Shell extension; RatClick just says which one it wants. Without
+/// the extension installed, the setting is inert.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Effect {
+    /// Draw nothing.
+    None,
+    /// Concentric rings, expanding when starting and contracting when stopping.
+    #[default]
+    Ripple,
+    /// A single disc that expands and fades. Quicker and less busy than ripple.
+    Pulse,
+    /// The RatClick icon fading in and drifting up.
+    Logo,
+}
+
+impl Effect {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Effect::None => "none",
+            Effect::Ripple => "ripple",
+            Effect::Pulse => "pulse",
+            Effect::Logo => "logo",
+        }
+    }
+
+    /// Short label for the GUI's drop-downs.
+    pub fn label(self) -> &'static str {
+        match self {
+            Effect::None => "Nothing",
+            Effect::Ripple => "Ripple",
+            Effect::Pulse => "Pulse",
+            Effect::Logo => "RatClick logo",
+        }
+    }
+
+    pub fn from_str_opt(s: &str) -> Option<Effect> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "none" | "off" => Some(Effect::None),
+            "ripple" => Some(Effect::Ripple),
+            "pulse" => Some(Effect::Pulse),
+            "logo" => Some(Effect::Logo),
+            _ => None,
+        }
+    }
+
+    pub const ALL: &'static [Effect] = &[Effect::None, Effect::Ripple, Effect::Pulse, Effect::Logo];
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct EffectsConfig {
+    /// Master switch. Turning this off silences both effects without losing
+    /// which ones were chosen.
+    pub enabled: bool,
+    /// Played when clicking starts.
+    pub on: Effect,
+    /// Played when clicking stops.
+    pub off: Effect,
+}
+
+impl Default for EffectsConfig {
+    fn default() -> Self {
+        EffectsConfig {
+            enabled: true,
+            // Different shapes as well as different colours, so the two are
+            // distinguishable at a glance and out of the corner of an eye.
+            on: Effect::Ripple,
+            off: Effect::Pulse,
+        }
+    }
+}
+
+impl EffectsConfig {
+    /// What the extension should draw when starting, honouring the master switch.
+    pub fn effective_on(&self) -> Effect {
+        if self.enabled {
+            self.on
+        } else {
+            Effect::None
+        }
+    }
+
+    pub fn effective_off(&self) -> Effect {
+        if self.enabled {
+            self.off
+        } else {
+            Effect::None
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ShortcutConfig {
@@ -183,6 +278,7 @@ pub struct Config {
     pub start_clicking_on_launch: bool,
     pub click: ClickConfig,
     pub shortcut: ShortcutConfig,
+    pub effects: EffectsConfig,
 }
 
 impl Default for Config {
@@ -193,6 +289,7 @@ impl Default for Config {
             start_clicking_on_launch: false,
             click: ClickConfig::default(),
             shortcut: ShortcutConfig::default(),
+            effects: EffectsConfig::default(),
         }
     }
 }
@@ -350,6 +447,72 @@ mod tests {
         c.set_duration_hm(2, 15);
         assert_eq!(c.duration_minutes, 135);
         assert_eq!(c.duration_hm(), (2, 15));
+    }
+
+    #[test]
+    fn the_master_switch_folds_into_the_effect_names() {
+        // The extension reads one value per transition, so `enabled` has to be
+        // applied here rather than left for it to combine.
+        let mut e = EffectsConfig {
+            enabled: true,
+            on: Effect::Logo,
+            off: Effect::Ripple,
+        };
+        assert_eq!(e.effective_on(), Effect::Logo);
+        assert_eq!(e.effective_off(), Effect::Ripple);
+
+        e.enabled = false;
+        assert_eq!(e.effective_on(), Effect::None);
+        assert_eq!(e.effective_off(), Effect::None);
+
+        // Turning it back on must restore the choices, not reset them.
+        e.enabled = true;
+        assert_eq!(e.effective_on(), Effect::Logo);
+        assert_eq!(e.effective_off(), Effect::Ripple);
+    }
+
+    #[test]
+    fn effect_names_round_trip_through_the_wire_form() {
+        for effect in Effect::ALL {
+            assert_eq!(Effect::from_str_opt(effect.as_str()), Some(*effect));
+        }
+        assert_eq!(Effect::from_str_opt("RIPPLE"), Some(Effect::Ripple));
+        assert_eq!(Effect::from_str_opt("sparkle"), None);
+    }
+
+    #[test]
+    fn effects_survive_a_disk_round_trip() {
+        let dir = std::env::temp_dir().join(format!("ratclick-fx{}", std::process::id()));
+        let path = dir.join("config.toml");
+        let cfg = Config {
+            effects: EffectsConfig {
+                enabled: false,
+                on: Effect::Logo,
+                off: Effect::None,
+            },
+            ..Default::default()
+        };
+        cfg.save_to(&path).unwrap();
+        assert_eq!(Config::load_from(&path).unwrap().effects, cfg.effects);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_config_written_before_effects_existed_still_loads() {
+        // Upgrades must not fail on a file that predates the section.
+        let dir = std::env::temp_dir().join(format!("ratclick-old{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.toml");
+        fs::write(
+            &path,
+            "version = 1\nsetup_complete = true\n\n[click]\ncpm = 900\n",
+        )
+        .unwrap();
+
+        let cfg = Config::load_from(&path).unwrap();
+        assert_eq!(cfg.click.cpm, 900);
+        assert_eq!(cfg.effects, EffectsConfig::default());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

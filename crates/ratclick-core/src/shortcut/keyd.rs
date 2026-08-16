@@ -321,10 +321,14 @@ fn splice(text: &str, block: &str) -> String {
     out
 }
 
+/// Are we running as root?
+pub fn is_root() -> bool {
+    // SAFETY: geteuid takes no arguments, cannot fail, and has no side effects.
+    unsafe { libc_geteuid() == 0 }
+}
+
 fn require_root() -> Result<()> {
-    // SAFETY: geteuid is always safe; it takes no arguments and cannot fail.
-    let euid = unsafe { libc_geteuid() };
-    if euid != 0 {
+    if !is_root() {
         anyhow::bail!(
             "writing {} needs root — re-run with sudo, or let the GUI ask via pkexec",
             config_dir().display()

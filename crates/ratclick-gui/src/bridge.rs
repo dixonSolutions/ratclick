@@ -163,10 +163,7 @@ fn poll_status() -> Snapshot {
 fn handle(cmd: Cmd) -> Result<(), String> {
     match cmd {
         Cmd::Refresh => Ok(()),
-        Cmd::StartDaemon => {
-            daemon::spawn().map_err(|e| format!("{e:#}"))?;
-            wait_for(true)
-        }
+        Cmd::StartDaemon => start_daemon(),
         Cmd::StopDaemon => {
             if !daemon::stop_via_systemd() {
                 if let Some(p) = proxy() {
@@ -189,8 +186,7 @@ fn handle(cmd: Cmd) -> Result<(), String> {
             // Starting the daemon on demand is what makes the big button work
             // straight after install without a separate "start service" step.
             if !name_has_owner() {
-                daemon::spawn().map_err(|e| format!("{e:#}"))?;
-                wait_for(true)?;
+                start_daemon()?;
             }
             proxy()
                 .ok_or_else(|| "cannot reach the service".to_string())?
@@ -199,6 +195,23 @@ fn handle(cmd: Cmd) -> Result<(), String> {
                 .map_err(|e| e.to_string())
         }
     }
+}
+
+/// Start the daemon and wait for it to reach *this* session bus.
+///
+/// systemd keeps its own `DBUS_SESSION_BUS_ADDRESS`, so a unit start can put
+/// the daemon on a different bus than the one we are talking to. If the name
+/// does not turn up, run the binary ourselves so it inherits our environment.
+fn start_daemon() -> Result<(), String> {
+    let how = daemon::spawn().map_err(|e| format!("{e:#}"))?;
+    if wait_for(true).is_ok() {
+        return Ok(());
+    }
+    if how == daemon::Launched::Systemd {
+        daemon::spawn_direct().map_err(|e| format!("{e:#}"))?;
+        return wait_for(true);
+    }
+    Err("the RatClick service did not start — run `ratclick doctor` in a terminal".into())
 }
 
 /// Block until the daemon's presence on the bus matches `want`.

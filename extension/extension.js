@@ -3,7 +3,8 @@
  * RatClick — GNOME Shell front-end for the RatClick auto-clicker daemon.
  *
  * Provides a Quick Settings toggle, a panel indicator that is visible only
- * while the clicker is armed, and a global keyboard shortcut.
+ * while the clicker is armed, a global keyboard shortcut, and the toggle
+ * effects drawn at the pointer (see effects.js).
  */
 
 import Gio from 'gi://Gio';
@@ -17,8 +18,25 @@ import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js'
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {RatClickClient} from './dbus.js';
+import * as Effects from './effects.js';
 
 const TOGGLE_KEY = 'toggle-clicking';
+
+/* The extension's own bus name. It exists for exactly one reason: prefs.js
+ * runs in a separate process with no access to the stage, so the "preview"
+ * buttons cannot draw an effect themselves and have to ask the shell. */
+const PREVIEW_BUS_NAME = 'io.github.dixonsolutions.RatClick.ShellExtension';
+const PREVIEW_OBJECT_PATH = '/io/github/dixonsolutions/RatClick/ShellExtension';
+
+const PREVIEW_IFACE = `
+<node>
+  <interface name="io.github.dixonsolutions.RatClick.ShellExtension1">
+    <method name="PreviewEffect">
+      <arg type="s" direction="in" name="effect"/>
+      <arg type="b" direction="in" name="on"/>
+    </method>
+  </interface>
+</node>`;
 
 /* Shipped with the RatClick application. Falls back to a stock icon so the
  * extension is usable before/without the application's icon theme files. */
@@ -227,11 +245,64 @@ class RatClickIndicator extends QuickSettings.SystemIndicator {
     }
 });
 
+/**
+ * Lets the preferences window play an effect on the stage.
+ *
+ * Preview is the only thing exposed: the effect *settings* live in the
+ * daemon's configuration and are edited in the RatClick application. Having a
+ * second place to change them would let the two disagree.
+ */
+class PreviewService {
+    constructor() {
+        this._impl = Gio.DBusExportedObject.wrapJSObject(PREVIEW_IFACE, this);
+        this._impl.export(Gio.DBus.session, PREVIEW_OBJECT_PATH);
+
+        /* Re-enabling the extension must always get the name back, even if a
+         * previous instance somehow failed to release it. */
+        this._nameId = Gio.bus_own_name(
+            Gio.BusType.SESSION,
+            PREVIEW_BUS_NAME,
+            Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT | Gio.BusNameOwnerFlags.REPLACE,
+            null, null, null);
+    }
+
+    /**
+     * D-Bus: play one effect at the pointer, ignoring EffectsEnabled.
+     *
+     * @param {string} effect - one of `Effects.EFFECT_NAMES`
+     * @param {boolean} on - true to preview the start colour, false the stop one
+     */
+    PreviewEffect(effect, on) {
+        if (!Effects.EFFECT_NAMES.includes(effect)) {
+            throw new GLib.Error(Gio.DBusError, Gio.DBusError.INVALID_ARGS,
+                `Unknown effect '${effect}'`);
+        }
+        Effects.playEffect(effect, {isOn: on});
+    }
+
+    destroy() {
+        if (this._nameId) {
+            Gio.bus_unown_name(this._nameId);
+            this._nameId = 0;
+        }
+        if (this._impl) {
+            this._impl.unexport();
+            this._impl = null;
+        }
+    }
+}
+
 export default class RatClickExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._client = new RatClickClient();
         this._indicator = new RatClickIndicator(this._client);
+        this._preview = new PreviewService();
+
+        /* Only real start/stop edges reach this; see the signal's definition
+         * in dbus.js for why a counting-down timed run does not. */
+        this._transitionId = this._client.connect('run-transition',
+            (_client, running) => this._onRunTransition(running));
 
         Main.panel.statusArea.quickSettings.addExternalIndicator(this._indicator);
 
@@ -248,11 +319,38 @@ export default class RatClickExtension extends Extension {
             error => console.warn(`RatClick: ${error.message}`));
     }
 
+    /**
+     * Draw the configured effect for a start or stop the daemon just
+     * announced.
+     *
+     * @param {boolean} running - true if clicking just started
+     */
+    _onRunTransition(running) {
+        const client = this._client;
+        if (!client?.effectsEnabled)
+            return;
+
+        Effects.playEffect(running ? client.effectOn : client.effectOff,
+            {isOn: running});
+    }
+
     disable() {
         if (this._keybindingAdded) {
             Main.wm.removeKeybinding(TOGGLE_KEY);
             this._keybindingAdded = false;
         }
+
+        if (this._preview) {
+            this._preview.destroy();
+            this._preview = null;
+        }
+
+        /* Stop new effects being requested, then clear the ones in flight. */
+        if (this._client && this._transitionId) {
+            this._client.disconnect(this._transitionId);
+            this._transitionId = 0;
+        }
+        Effects.destroyAll();
 
         if (this._indicator) {
             this._indicator.quickSettingsItems.forEach(item => item.destroy());

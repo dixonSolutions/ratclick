@@ -49,11 +49,27 @@ pub fn systemd_unit_exists() -> bool {
         .unwrap_or(false)
 }
 
+/// How the daemon was launched.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Launched {
+    /// `systemctl --user start` reported success.
+    Systemd,
+    /// The binary was run directly.
+    Direct,
+}
+
 /// Start the daemon, detached from this process.
 ///
 /// Prefers systemd so that `systemctl --user status ratclick` reflects reality
 /// and the daemon outlives the shell that started it.
-pub fn spawn() -> Result<()> {
+///
+/// Note that systemd starting the unit does **not** guarantee the daemon lands
+/// on the bus the caller is talking to: the user manager has its own
+/// `DBUS_SESSION_BUS_ADDRESS`, so under a scratch or nested bus the daemon
+/// appears somewhere else entirely. Callers must wait for the name and fall
+/// back to [`spawn_direct`] if it never shows up — which is why this reports
+/// how it started things.
+pub fn spawn() -> Result<Launched> {
     if systemd_unit_exists() {
         let started = Command::new("systemctl")
             .args(["--user", "start", UNIT])
@@ -61,10 +77,15 @@ pub fn spawn() -> Result<()> {
             .map(|s| s.success())
             .unwrap_or(false);
         if started {
-            return Ok(());
+            return Ok(Launched::Systemd);
         }
     }
+    spawn_direct().map(|()| Launched::Direct)
+}
 
+/// Run the daemon binary directly, inheriting this process's environment — and
+/// so this process's session bus.
+pub fn spawn_direct() -> Result<()> {
     let path = find().context(
         "cannot find `ratclickd` — install the ratclick package, or build the workspace first",
     )?;

@@ -46,19 +46,26 @@ you finish.
 ## Using it
 
 ```bash
+ratclick            # print help — a bare command should explain itself, not open a window
 ratclick gui        # open the window
 ratclick toggle     # start if stopped, stop if running — what the shortcut runs
 ratclick status     # what is it doing right now
 ratclick doctor     # check the install and report anything that would break it
 ```
 
-Settings can be changed without opening the window:
+Settings can be edited as a file or poked one key at a time:
 
 ```bash
+ratclick config                        # open it in $VISUAL / $EDITOR (nano if unset)
+ratclick config read                   # print the file verbatim
+ratclick config show                   # print an interpreted summary
 ratclick config set cpm 900
-ratclick config set button right
 ratclick config set duration 1h30m     # also accepts 90 or 1:30
 ```
+
+`ratclick config` re-parses the file when your editor exits and refuses to
+adopt one it cannot read, offering you the editor again rather than leaving
+RatClick unable to start.
 
 A run is either **endless** — until you toggle it off — or **timed**. Timed runs
 are stored in whole minutes and shown as hours + minutes, and the daemon stops
@@ -104,6 +111,29 @@ RatClick appends a marked block to *every* file in `/etc/keyd` rather than
 adding one of its own. keyd picks a single config per keyboard, so a new file
 with `[ids] *` would quietly lose to an existing `default.conf`. Removal deletes
 exactly the marked block, restoring the original files byte for byte.
+
+## Toggle effects
+
+When you fire the shortcut, the window is usually not on screen — so RatClick
+can draw a brief flourish at the pointer to acknowledge it. Start is drawn in
+green, stop in red, and each can be set independently:
+
+| Effect | What it looks like |
+| --- | --- |
+| `ripple` | concentric rings, expanding on start and contracting on stop |
+| `pulse` | one disc expanding and fading — quicker, less busy |
+| `logo` | the RatClick icon fading in beside the pointer and drifting up |
+| `none` | nothing |
+
+```bash
+ratclick config set effects on
+ratclick config set effect-on ripple
+ratclick config set effect-off pulse
+```
+
+Only the compositor can draw over other windows on Wayland, so these are
+rendered by the Shell extension below. Without it the settings are stored but
+nothing is drawn.
 
 ## The GNOME Shell extension
 
@@ -182,6 +212,16 @@ Releases are cut by pushing a version bump to `main`: the workflow builds both
 packages, publishes a GitHub release, and regenerates the signed apt and dnf
 repositories on GitHub Pages.
 
+## Starting over
+
+The app's **Danger zone** has a Reset button that deletes your settings and
+unbinds the shortcut from every backend, putting you back at first run without
+uninstalling anything. The same thing from a terminal:
+
+```bash
+ratclick config reset
+```
+
 ## Licence
 
-GPL-3.0-or-later.
+MIT — see [LICENSE](LICENSE).

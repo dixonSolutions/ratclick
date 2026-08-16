@@ -50,6 +50,9 @@ path = "src/lib.rs"
 name = "ratclick"
 maintainer = "dixonSolutions <noreply@github.com>"
 copyright = "2026, dixonSolutions"
+# Ship the real MIT text rather than letting cargo-deb synthesise a copyright
+# file from the metadata. The 0 means no header lines to skip.
+license-file = ["../LICENSE", "0"]
 section = "utils"
 priority = "optional"
 extended-description = """
@@ -89,7 +92,7 @@ keyboard shortcut, or from the command line.
 The clicks come from a virtual pointer created through the kernel uinput \
 device, so they behave the same under Wayland and X11. Your user needs to be \
 in the `input` group; `ratclick doctor` will tell you whether it already is."""
-license = "GPL-3.0-or-later"
+license = "MIT"
 # The .rpm is built inside a fedora:latest container so that the ELF sonames it
 # is checked against are Fedora's. Dependency discovery is still off: the
 # requires below are the human-meaningful ones, and `find-requires` would

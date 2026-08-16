@@ -3,12 +3,18 @@
  * Preferences for the RatClick shell extension.
  *
  * The extension only owns the shell integration, so the single setting here is
- * the global toggle shortcut. Click rate, mouse button and run duration belong
- * to the RatClick application itself.
+ * the global toggle shortcut. Click rate, mouse button, run duration and the
+ * choice of toggle effect belong to the RatClick application itself.
+ *
+ * The effect previews below are *not* settings. They exist because this
+ * process cannot draw on the stage — it is not the shell — so each button asks
+ * the running extension to play one over D-Bus. If the extension is disabled
+ * there is nothing to ask and the button says so.
  */
 
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
@@ -19,6 +25,14 @@ import {
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 const TOGGLE_KEY = 'toggle-clicking';
+
+/* Must match extension.js. */
+const PREVIEW_BUS_NAME = 'io.github.dixonsolutions.RatClick.ShellExtension';
+const PREVIEW_OBJECT_PATH = '/io/github/dixonsolutions/RatClick/ShellExtension';
+const PREVIEW_IFACE_NAME = 'io.github.dixonsolutions.RatClick.ShellExtension1';
+
+/* 'none' is deliberately absent: there would be nothing to see. */
+const PREVIEWABLE = ['ripple', 'pulse', 'logo'];
 
 /* Navigation keys that must stay usable for moving around the UI. */
 const FORBIDDEN_KEYVALS = [
@@ -236,6 +250,69 @@ const ShortcutRow = GObject.registerClass({
     }
 });
 
+/**
+ * Ask the running extension to draw an effect at the pointer.
+ *
+ * @param {Adw.PreferencesWindow} window - used to report failures
+ * @param {string} effect - effect name
+ * @param {boolean} on - true for the start variant, false for the stop one
+ */
+function requestPreview(window, effect, on) {
+    Gio.DBus.session.call(
+        PREVIEW_BUS_NAME,
+        PREVIEW_OBJECT_PATH,
+        PREVIEW_IFACE_NAME,
+        'PreviewEffect',
+        new GLib.Variant('(sb)', [effect, on]),
+        null,
+        Gio.DBusCallFlags.NONE,
+        -1,
+        null,
+        (connection, result) => {
+            try {
+                connection.call_finish(result);
+            } catch (error) {
+                /* Almost always "the extension is switched off". Say that
+                 * rather than leaking a bus error at the user. */
+                window.add_toast(new Adw.Toast({
+                    title: _('Enable the RatClick extension to see a preview.'),
+                }));
+                console.debug(`RatClick: preview failed: ${error.message}`);
+            }
+        });
+}
+
+/**
+ * One row with a start-preview and a stop-preview button, so the two colours
+ * can be compared directly.
+ *
+ * @param {Adw.PreferencesWindow} window - passed through to `requestPreview`
+ * @param {string} title - user-visible effect name
+ * @param {string} effect - effect name on the wire
+ * @returns {Adw.ActionRow} the row
+ */
+function makePreviewRow(window, title, effect) {
+    const row = new Adw.ActionRow({title});
+
+    const box = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        spacing: 6,
+        valign: Gtk.Align.CENTER,
+    });
+
+    for (const [label, on] of [[_('Start'), true], [_('Stop'), false]]) {
+        const button = new Gtk.Button({
+            label,
+            valign: Gtk.Align.CENTER,
+        });
+        button.connect('clicked', () => requestPreview(window, effect, on));
+        box.append(button);
+    }
+
+    row.add_suffix(box);
+    return row;
+}
+
 export default class RatClickPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
@@ -279,6 +356,20 @@ export default class RatClickPreferences extends ExtensionPreferences {
         appRow.add_suffix(hint);
         aboutGroup.add(appRow);
         page.add(aboutGroup);
+
+        const previewGroup = new Adw.PreferencesGroup({
+            title: _('Toggle Effects'),
+            description: _('Which effect plays, and whether any plays at all, is set in the RatClick app. Preview them here — each is drawn at the pointer, green for starting and red for stopping.'),
+        });
+        for (const effect of PREVIEWABLE) {
+            const title = {
+                ripple: _('Ripple'),
+                pulse: _('Pulse'),
+                logo: _('Logo'),
+            }[effect];
+            previewGroup.add(makePreviewRow(window, title, effect));
+        }
+        page.add(previewGroup);
 
         window.add(page);
     }

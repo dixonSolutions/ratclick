@@ -16,10 +16,11 @@ choose. It is made of three parts:
 - *ratclick*, this command line;
 - *ratclick-gui*, a libadwaita window;
 - *ratclickd*, a background service that owns the virtual pointer and the
-  session D-Bus name _io.github.dixonsolutions.RatClick_.
+  session D-Bus name _io.github.dixonsolutions.RatClick.Daemon_. (The app
+  itself owns _io.github.dixonsolutions.RatClick_, so the two must differ.)
 
-Running *ratclick* with no command opens the window when a graphical session is
-present, and prints this help when there is not.
+Running *ratclick* with no command prints this help. Use *ratclick gui* to open
+the window.
 
 The first command that needs a configuration runs a short setup wizard. A
 non-interactive caller (a keyboard shortcut, a script) gets sensible defaults
@@ -78,16 +79,31 @@ Start, stop and inspect the background service.
 
 ## config
 
-Read and change settings.
+Read and change settings. With no subcommand, *config* opens the file in an
+editor.
+
+*config* [*edit*]
+	Open the configuration file in *$VISUAL*, or *$EDITOR*, falling back to
+	*nano* and then *vi*. The file is created with its defaults first if it
+	does not exist yet, so every key is visible.
+
+	On save the file is parsed before it is accepted. If it will not parse,
+	the error is shown and you are offered the editor again — RatClick will
+	not adopt a configuration it cannot read. The running service is told to
+	reload once the file is good.
+
+*config read*
+	Print the configuration file exactly as it is on disk, comments and all.
+	Contrast with *config show*, which prints an interpreted summary.
 
 *config show*
-	Print the current configuration.
+	Print the current configuration as a readable summary.
 
 *config path*
 	Print the path of the configuration file.
 
 *config set* _KEY_ _VALUE_
-	Change a setting. _KEY_ is one of:
+	Change a single setting. _KEY_ is one of:
 
 	- *cpm* - clicks per minute, a whole number.
 	- *button* - _left_, _right_ or _middle_.
@@ -97,8 +113,11 @@ Read and change settings.
 	- *hours* - the hours part of the duration. Switches to _timed_.
 	- *minutes* - the minutes part of the duration, 0-59. Switches to
 	  _timed_.
-	- *autostart* - _true_ or _false_; start clicking as soon as the app
-	  launches.
+	- *autostart* - _on_ or _off_; start clicking as soon as the service
+	  starts.
+	- *effects* - _on_ or _off_; master switch for the toggle effects.
+	- *effect-on*, *effect-off* - _none_, _ripple_, _pulse_ or _logo_. See
+	  *TOGGLE EFFECTS* below.
 
 *config reset* [*--yes*]
 	Delete the configuration, so the next run starts the wizard again. This
@@ -153,7 +172,7 @@ _~/.config/ratclick/config.toml_
 _/usr/lib/systemd/user/ratclick.service_
 	The systemd user unit for the background service.
 
-_/usr/share/dbus-1/services/io.github.dixonsolutions.RatClick.service_
+_/usr/share/dbus-1/services/io.github.dixonsolutions.RatClick.Daemon.service_
 	D-Bus session activation, so the service starts on demand.
 
 _/usr/lib/udev/rules.d/60-ratclick-uinput.rules_
@@ -162,6 +181,36 @@ _/usr/lib/udev/rules.d/60-ratclick-uinput.rules_
 _/usr/libexec/ratclick/ratclick-keyd-dispatch_
 	Helper that lets a root-owned keyd binding reach the logged-in user's
 	session bus.
+
+# TOGGLE EFFECTS
+
+RatClick can draw a brief flourish at the pointer when clicking starts or
+stops, so a toggle you fired from a keyboard shortcut is visibly acknowledged
+even when the window is not on screen.
+
+Only the compositor can draw over other windows on Wayland, so the effects are
+rendered by the RatClick GNOME Shell extension. Without it installed the
+settings are accepted and stored but nothing is drawn.
+
+The start effect is drawn in green and the stop effect in red, so the two are
+distinguishable even when they use the same shape.
+
+*none*
+	Draw nothing.
+
+*ripple*
+	Concentric rings, expanding outward when clicking starts and contracting
+	inward when it stops.
+
+*pulse*
+	A single disc that expands and fades. Quicker and less busy than
+	*ripple*.
+
+*logo*
+	The RatClick icon fading in beside the pointer and drifting upward.
+
+Set them with *config set effects on*, *config set effect-on ripple* and
+*config set effect-off pulse*, or from the *Toggle effect* section of the app.
 
 # PERMISSIONS
 
@@ -174,6 +223,18 @@ sudo usermod -aG input $USER
 ```
 
 *ratclick doctor* tells you whether this is already in place.
+
+# ENVIRONMENT
+
+*VISUAL*, *EDITOR*
+	Which editor *config edit* opens. *VISUAL* wins; *nano* then *vi* are the
+	fallbacks. The value is run through the shell, so
+	_EDITOR="code -w"_ works.
+
+*RATCLICK_CONFIG*
+	Overrides the configuration file path. Used by the test harness, and by
+	*sudo*/*pkexec* escalation so the privileged step edits your
+	configuration rather than root's.
 
 # EXIT STATUS
 

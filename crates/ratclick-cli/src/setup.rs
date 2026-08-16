@@ -7,6 +7,7 @@
 //! would be a worse experience than typing `<Super><Shift>c`.
 
 use std::io::{self, IsTerminal, Write};
+use std::process::Command;
 
 use anyhow::{Context, Result};
 use ratclick_core::accel::Accel;
@@ -318,12 +319,77 @@ pub fn apply_and_report(cfg: &Config) -> Result<()> {
             }
             Ok(())
         }
-        Err(e) => {
-            println!("  \x1b[31m!\x1b[0m could not register the shortcut: {e}");
-            if cfg.shortcut.backend == ShortcutBackend::Keyd {
-                println!("    keyd writes to /etc/keyd, so try: sudo ratclick shortcut apply");
+        Err(e) if cfg.shortcut.backend == ShortcutBackend::Keyd && !shortcut::keyd::is_root() => {
+            // keyd lives in /etc, so this genuinely needs root. Rather than
+            // telling the user to run a command themselves, ask sudo for it —
+            // they are at a terminal and sudo will prompt if it needs to.
+            println!("  keyd shortcuts live in /etc/keyd, which needs administrator rights.");
+            match escalate_via_sudo() {
+                Ok(true) => {
+                    let installed = shortcut::installed(cfg.shortcut.backend);
+                    if installed == cfg.shortcut.bindings {
+                        println!("  \x1b[32m✓\x1b[0m shortcut registered with the keyd backend");
+                    } else {
+                        println!(
+                            "  \x1b[33m!\x1b[0m the privileged step reported success but the \
+                             binding did not appear"
+                        );
+                    }
+                }
+                Ok(false) => {
+                    println!("  \x1b[33m!\x1b[0m cancelled; the shortcut is not installed")
+                }
+                Err(e2) => {
+                    println!("  \x1b[31m!\x1b[0m {e2}");
+                    println!("    original error: {e}");
+                    println!("    you can do it by hand with: sudo ratclick shortcut apply");
+                }
             }
             Ok(())
         }
+        Err(e) => {
+            println!("  \x1b[31m!\x1b[0m could not register the shortcut: {e}");
+            Ok(())
+        }
     }
+}
+
+/// Guard against a re-invoked copy escalating again and looping.
+const NO_ESCALATE: &str = "RATCLICK_NO_ESCALATE";
+
+/// Re-run `ratclick shortcut apply` under sudo.
+///
+/// Returns `Ok(false)` if sudo was declined or the password prompt was
+/// cancelled — that is a decision, not a failure.
+fn escalate_via_sudo() -> Result<bool> {
+    anyhow::ensure!(
+        std::env::var_os(NO_ESCALATE).is_none(),
+        "already running under sudo but still cannot write to /etc/keyd"
+    );
+    let sudo = which("sudo").context("sudo is not installed")?;
+    let exe = std::env::current_exe().context("cannot find my own path")?;
+    // sudo scrubs the environment, so the config location has to be passed
+    // through explicitly: root's own config is not the one being installed.
+    let config = Config::path()?;
+
+    println!("  Running: sudo ratclick shortcut apply");
+    let status = Command::new(sudo)
+        .arg("--")
+        .arg("env")
+        .arg(format!("{NO_ESCALATE}=1"))
+        .arg(format!("RATCLICK_CONFIG={}", config.display()))
+        .arg(&exe)
+        .args(["shortcut", "apply"])
+        .status()
+        .context("running sudo")?;
+
+    Ok(status.success())
+}
+
+fn which(bin: &str) -> Option<std::path::PathBuf> {
+    std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths)
+            .map(|d| d.join(bin))
+            .find(|p| p.is_file())
+    })
 }
