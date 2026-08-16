@@ -1,66 +1,161 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="RatClick — auto-clicking for GNOME" width="640">
+</p>
+
 # RatClick
 
-An auto-clicker for GNOME. Pick a click rate, a mouse button and how long the
-run should last, then start it from the window, from a global keyboard
-shortcut, or from the command line.
+An auto-clicker for GNOME. Pick a click rate, a mouse button and how long a run
+should last, then start it from the window, from a global keyboard shortcut, or
+from the command line.
 
-The clicks come from a virtual pointer created through the kernel `uinput`
-device, so they behave the same under Wayland and X11.
+Clicks come from a virtual pointer created through the kernel `uinput` device,
+so they work under Wayland as well as X11 — no `XTEST`, no compositor
+cooperation required.
 
 ## Install
 
-Packages for Debian/Ubuntu and Fedora, and the apt/dnf repositories that carry
-them, are described in [docs/install.md](docs/install.md).
+```bash
+curl -fsSL https://dixonsolutions.github.io/ratclick/ratclick.asc \
+  | sudo tee /etc/apt/keyrings/ratclick.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ratclick.list
+sudo apt update && sudo apt install ratclick
+```
 
-## What you get
+The dnf equivalent, and how to install the `.deb`/`.rpm` directly from a
+release, are in [docs/install.md](docs/install.md).
 
-| Path | What it is |
-| --- | --- |
-| `/usr/bin/ratclick` | the command line |
-| `/usr/bin/ratclick-gui` | the libadwaita window |
-| `/usr/libexec/ratclick/ratclickd` | the background service |
-| `/usr/lib/systemd/user/ratclick.service` | systemd user unit for the service |
-| `/usr/share/gnome-shell/extensions/ratclick@dixonsolutions.github.io/` | Quick Settings toggle and panel indicator |
+Then run `ratclick gui`. The first launch walks you through the four decisions
+that matter — rate, button, run length, shortcut — and nothing is written until
+you finish.
+
+<p align="center">
+  <img src="docs/screenshots/main-window.png" alt="The RatClick window, mid-run" width="300">
+  <img src="docs/screenshots/wizard-run-length.png" alt="Choosing a run length during setup" width="300">
+  <img src="docs/screenshots/shortcut-capture.png" alt="Capturing a shortcut, with a live conflict check" width="300">
+</p>
 
 ## Using it
 
 ```bash
 ratclick gui        # open the window
-ratclick start      # start clicking
-ratclick stop       # stop clicking
-ratclick toggle     # what the global shortcut runs
+ratclick toggle     # start if stopped, stop if running — what the shortcut runs
 ratclick status     # what is it doing right now
-ratclick doctor     # check the install and report anything broken
+ratclick doctor     # check the install and report anything that would break it
 ```
 
-`ratclick config set cpm 900`, `ratclick config set button right` and
-`ratclick config set duration 1h30m` change the settings without opening the
-window. `man 1 ratclick` documents every subcommand.
+Settings can be changed without opening the window:
+
+```bash
+ratclick config set cpm 900
+ratclick config set button right
+ratclick config set duration 1h30m     # also accepts 90 or 1:30
+```
+
+A run is either **endless** — until you toggle it off — or **timed**. Timed runs
+are stored in whole minutes and shown as hours + minutes, and the daemon stops
+itself when the time is up.
+
+`man 1 ratclick` documents every subcommand.
+
+## The toggle shortcut
+
+One key combination starts and stops clicking. RatClick can register it three
+different ways, because no single mechanism works everywhere:
+
+| Backend | Registered by | Needs root | Works outside GNOME |
+| --- | --- | --- | --- |
+| `gnome` | a GNOME custom keybinding (gsettings) | no | no |
+| `extension` | the Shell extension, via `Main.wm.addKeybinding` | no | no |
+| `keyd` | [keyd](https://github.com/rvaiya/keyd), at the evdev layer | yes | yes, including a TTY |
+
+```bash
+ratclick shortcut check '<Super><Shift>c'   # is it free?
+ratclick shortcut set   '<Super><Shift>c'   # take it
+ratclick shortcut set   '<Super>F9' --backend keyd --force
+ratclick shortcut list                      # every shortcut the desktop has bound
+```
+
+Before taking a combination, RatClick scans every schema GNOME keeps shortcuts
+in — window manager, Shell, Mutter, media keys and existing custom shortcuts —
+plus everything in `/etc/keyd`, and tells you what it would collide with.
+`--force` unbinds the other holder first.
+
+After installing, the binding is **read back** from the backend rather than
+assumed, so a write that silently failed is reported instead of looking like
+success.
+
+### keyd notes
+
+keyd runs as root and has no session of its own, so the binding invokes
+`/usr/libexec/ratclick/ratclick-keyd-dispatch`, which finds the active graphical
+session, drops to that user with their full group membership, and runs
+`ratclick toggle` on their session bus.
+
+RatClick appends a marked block to *every* file in `/etc/keyd` rather than
+adding one of its own. keyd picks a single config per keyboard, so a new file
+with `[ids] *` would quietly lose to an existing `default.conf`. Removal deletes
+exactly the marked block, restoring the original files byte for byte.
+
+## The GNOME Shell extension
+
+Optional. It adds a Quick Settings toggle with the live click rate and
+countdown, plus a panel indicator that appears only while clicking is armed —
+useful, because a clicker you have forgotten about is a nuisance.
+
+It is **not** on extensions.gnome.org; it installs from the release zip. See
+[docs/extension.md](docs/extension.md).
 
 ## Permissions
 
-The daemon needs write access to `/dev/uinput`. The packaged udev rule grants
-that to the `input` group; add yourself and log in again:
+The daemon needs write access to `/dev/uinput`. The packaged udev rule grants it
+to the `input` group; add yourself and log in again:
 
 ```bash
 sudo usermod -aG input $USER
 ```
 
-`ratclick doctor` reports whether this is already in place.
+Anyone in `input` can already read every keystroke on the system, so this does
+not widen the trust boundary — but it is worth knowing. `ratclick doctor` tells
+you whether it is in place.
 
 ## Building from source
 
-Needs Rust 1.82 or newer plus the GTK 4 and libadwaita development packages.
+Rust 1.82 or newer, plus GTK 4 and libadwaita development packages.
 
 ```bash
-# Debian/Ubuntu
 sudo apt install libadwaita-1-dev libgtk-4-dev libudev-dev
-
 cargo build --release --workspace
 ```
 
 `scripts/build-packages.sh` turns that into a `.deb` and an `.rpm` under
 `dist/`.
+
+### Testing
+
+`cargo test --workspace` covers the pure logic. The click engine has an
+integration suite that drives a real `uinput` device; it is ignored by default
+because it needs `/dev/uinput`:
+
+```bash
+cargo test -p ratclick-daemon -- --ignored --test-threads=1
+```
+
+Those tests call `EVIOCGRAB` on the virtual pointer before clicking, so the
+events they generate cannot reach your desktop.
+
+For anything that touches gsettings, use the throwaway session harness — GNOME
+shortcuts live in per-*user* dconf, so testing in your own session would rewrite
+your real keybindings:
+
+```bash
+scripts/nested-session.sh start          # headless GNOME 50 with its own dconf and bus
+scripts/nested-session.sh run ratclick shortcut set '<Super>F9'
+scripts/nested-session.sh reset
+```
+
+It refuses to start unless it can prove that settings written inside it are
+invisible outside.
 
 ## Layout
 
@@ -73,7 +168,11 @@ cargo build --release --workspace
 | `extension/` | GNOME Shell extension |
 | `data/` | units, D-Bus and desktop files, udev rule, man page, AppStream |
 | `packaging/` | `.deb` and `.rpm` metadata |
-| `scripts/` | package and repository builders |
+| `scripts/` | package, repository and test-session builders |
+
+Releases are cut by pushing a version bump to `main`: the workflow builds both
+packages, publishes a GitHub release, and regenerates the signed apt and dnf
+repositories on GitHub Pages.
 
 ## Licence
 
