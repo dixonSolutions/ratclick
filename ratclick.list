@@ -1,0 +1,1 @@
+deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main

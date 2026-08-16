@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RatClick package repositories</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #1c1b1f; --muted: #5d5b62;
+    --card: #f5f4f7; --border: #d8d6dd; --accent: #7a4fd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17161a; --fg: #eceaf0; --muted: #a4a1ac;
+            --card: #232128; --border: #35323c; --accent: #b79bf0; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 3rem 1.25rem 5rem; max-width: 46rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 2rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.2rem; margin: 2.5rem 0 .75rem; }
+  p.lede { color: var(--muted); margin: 0 0 2rem; }
+  pre {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: .9rem 1rem; overflow-x: auto;
+    font: 13.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  a { color: var(--accent); }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<h1>RatClick</h1>
+<p class="lede">An auto-clicker for GNOME. These are the signed apt and dnf
+repositories; both are refreshed by the release workflow.</p>
+
+<h2>Debian / Ubuntu</h2>
+<pre><code>sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://dixonsolutions.github.io/ratclick/ratclick.asc | sudo tee /etc/apt/keyrings/ratclick.asc >/dev/null
+echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] https://dixonsolutions.github.io/ratclick/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ratclick.list
+sudo apt update &amp;&amp; sudo apt install ratclick</code></pre>
+
+<h2>Fedora / RHEL</h2>
+<pre><code>sudo curl -fsSL -o /etc/yum.repos.d/ratclick.repo https://dixonsolutions.github.io/ratclick/ratclick.repo
+sudo rpm --import https://dixonsolutions.github.io/ratclick/ratclick.asc
+sudo dnf install ratclick</code></pre>
+
+<h2>After installing</h2>
+<pre><code>ratclick gui        # open the window
+ratclick doctor     # check the install
+
+# clicking needs write access to /dev/uinput:
+sudo usermod -aG input $USER   # then log out and back in</code></pre>
+
+<h2>What is here</h2>
+<pre><code>https://dixonsolutions.github.io/ratclick/apt/            apt repository (suite "stable", component "main")
+https://dixonsolutions.github.io/ratclick/dnf/            dnf repository
+https://dixonsolutions.github.io/ratclick/ratclick.asc    signing key, ASCII-armoured
+https://dixonsolutions.github.io/ratclick/ratclick.gpg    signing key, dearmoured, for signed-by=
+https://dixonsolutions.github.io/ratclick/ratclick.repo   ready-made dnf repository file
+https://dixonsolutions.github.io/ratclick/ratclick.list   ready-made apt sources line</code></pre>
+
+<footer>
+Source and issue tracker:
+<a href="https://github.com/dixonSolutions/ratclick">github.com/dixonSolutions/ratclick</a>
+</footer>
+</body>
+</html>

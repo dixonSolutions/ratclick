@@ -1,0 +1,8 @@
+[ratclick]
+name=RatClick
+baseurl=https://dixonsolutions.github.io/ratclick/dnf
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://dixonsolutions.github.io/ratclick/ratclick.asc
+metadata_expire=6h

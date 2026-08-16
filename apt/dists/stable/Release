@@ -1,0 +1,24 @@
+Architectures: amd64
+Codename: stable
+Components: main
+Date: Sun, 16 Aug 2026 06:10:35 +0000
+Description: RatClick packages for Debian and Ubuntu
+Label: RatClick
+Origin: RatClick
+Suite: stable
+MD5Sum:
+ 9d5cea080c6e182d3af4500a0e35ec7b             1146 main/binary-amd64/Packages
+ 795423edc4de5f249ec7f664428bb9bd              755 main/binary-amd64/Packages.gz
+ f02dd22a50d3aea8cacfb447c109388f               85 main/binary-amd64/Release
+SHA1:
+ e6ba1ba3da14038dcc1216bbad2859d044b2ebee             1146 main/binary-amd64/Packages
+ f6186ed1926bccc69565ef63f9a984637ce89025              755 main/binary-amd64/Packages.gz
+ c7256ccd114c20b179d2f7a260f7cd788dfaa678               85 main/binary-amd64/Release
+SHA256:
+ 6885b05f9c4bc7df1679d92ee9383fa36218905723b9c4099b10fda8340c1407             1146 main/binary-amd64/Packages
+ 05dbf05145469918fc17cbed58d6b2a7fb63061977ca78628c77e4facefb7dc5              755 main/binary-amd64/Packages.gz
+ 2ba558388b76f853a0dad42ccaa154d180d74b33bd52a63918d967b6f3989dcc               85 main/binary-amd64/Release
+SHA512:
+ 656466ecf35abd4c011f150f7427e8eb61818db3bf55c027e64713c04ebc7fb83990821984a2067d96b4ed4807584320e34899361d92a58c24ab7207782604e1             1146 main/binary-amd64/Packages
+ 5baabe5741a3b2a8cdaca867fac97428eb3608a6a6b52339cd1f82d79850ea1a5a16231c7cfac0a74aa97cb92bc7f23ed686c89ebbacc05a020bf21e743b79cc              755 main/binary-amd64/Packages.gz
+ c3115f2a9f0f4f3a7293c2d8c0fb3365a4a39b088ee28533a13b9cbd7b24939f49b600d0c8d48900e52376a87347612f0b038d32d1f90aee394c240697974475               85 main/binary-amd64/Release
