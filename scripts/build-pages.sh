@@ -107,10 +107,16 @@ repositories; both are refreshed by the release workflow.</p>
 
 <h2>Debian / Ubuntu</h2>
 <pre><code>sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL $SITE_URL/ratclick.asc | sudo tee /etc/apt/keyrings/ratclick.asc >/dev/null
-echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] $SITE_URL/apt stable main" \\
-  | sudo tee /etc/apt/sources.list.d/ratclick.list
-sudo apt update &amp;&amp; sudo apt install ratclick</code></pre>
+curl -fsSL -o /tmp/ratclick.asc $SITE_URL/ratclick.asc \\
+  &amp;&amp; grep -q 'BEGIN PGP PUBLIC KEY' /tmp/ratclick.asc \\
+  &amp;&amp; sudo install -m 0644 /tmp/ratclick.asc /etc/apt/keyrings/ratclick.asc \\
+  &amp;&amp; echo "deb [signed-by=/etc/apt/keyrings/ratclick.asc] $SITE_URL/apt stable main" \\
+     | sudo tee /etc/apt/sources.list.d/ratclick.list &gt;/dev/null \\
+  &amp;&amp; sudo apt update \\
+  &amp;&amp; sudo apt install ratclick</code></pre>
+<p>The chain is deliberate: the sources file is written only once the signing
+key is really in place, so a failed download leaves nothing for
+<code>apt update</code> to choke on.</p>
 
 <h2>Fedora / RHEL</h2>
 <pre><code>sudo curl -fsSL -o /etc/yum.repos.d/ratclick.repo $SITE_URL/ratclick.repo
