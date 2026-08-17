@@ -4,40 +4,40 @@ Hash: SHA512
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Sun, 16 Aug 2026 06:34:24 +0000
+Date: Mon, 17 Aug 2026 01:03:38 +0000
 Description: RatClick packages for Debian and Ubuntu
 Label: RatClick
 Origin: RatClick
 Suite: stable
 MD5Sum:
- fffc22e743fa57b9c957ddbcd289c934             1146 main/binary-amd64/Packages
- dcdc4fd15f98239dab6017315243ec3b              752 main/binary-amd64/Packages.gz
+ c71d8bed3546cf87d174dd2cca71adf6             2292 main/binary-amd64/Packages
+ 7d2cb24928aee484d3f10e9a46ec65a6              964 main/binary-amd64/Packages.gz
  f02dd22a50d3aea8cacfb447c109388f               85 main/binary-amd64/Release
 SHA1:
- c72de70b4cb005f26d13f0b8560692753dd375f4             1146 main/binary-amd64/Packages
- ee55fa57576bcd3d4904566a4dd4128bb465c48f              752 main/binary-amd64/Packages.gz
+ 2d65177a9fc3d709e307fe88140cfd1da44281d2             2292 main/binary-amd64/Packages
+ 5a80fe91f34518588a7fba1a03a0bb0181964fa3              964 main/binary-amd64/Packages.gz
  c7256ccd114c20b179d2f7a260f7cd788dfaa678               85 main/binary-amd64/Release
 SHA256:
- a13fde14a4e3777f93973fdf9f628ce6580220b18e89402e9a8a295724e190f9             1146 main/binary-amd64/Packages
- 4fb6d98b0c1b353397917421621b2dd54b988ef15643a6dc776f218bb1fd6168              752 main/binary-amd64/Packages.gz
+ c8b8b1a3927d1cce1617ed5f193f9615709ab91b8bd7ce9802a757899c72ee5d             2292 main/binary-amd64/Packages
+ b9f0ba459ed5aac0d484861e21f0852438dfa06dca4e5f1838587011a7b40439              964 main/binary-amd64/Packages.gz
  2ba558388b76f853a0dad42ccaa154d180d74b33bd52a63918d967b6f3989dcc               85 main/binary-amd64/Release
 SHA512:
- 98892654111074aaec4e931f8c8bf8bba3daf19c6aea685bafb37319a1e96e9b162aa827d44b73f1780330a4ec831497d0aadee14edf6cc2316020fd8629068c             1146 main/binary-amd64/Packages
- e06072e166cb23102738053302599e213cd15ee6e9a1296519e1743001eff387d7c829daa2717f4817d456902be7e26491903f9f7e79f46c86b35bef6b3d86b9              752 main/binary-amd64/Packages.gz
+ 88be72da49988d8c3384c74f77faae06a7d74bc4c45dd4951a90b133600941030f86becc92f2eb4a98990536eab378c079b8ed866940f7115e41ee8261f62b6c             2292 main/binary-amd64/Packages
+ 94ef19fe4d23e9ecf3eeac32772be7b8031a1d8f2f7b829eaa295336a7a229e43c14c478756ad9c561e2645de2fda5859f88c0e3e4dab13648698a24076c24bb              964 main/binary-amd64/Packages.gz
  c3115f2a9f0f4f3a7293c2d8c0fb3365a4a39b088ee28533a13b9cbd7b24939f49b600d0c8d48900e52376a87347612f0b038d32d1f90aee394c240697974475               85 main/binary-amd64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEn89zMCo4uz3oY3njDC6nCWT30nMFAmqBWfEACgkQDC6nCWT3
-0nNt/Q//dfqX9ZvKUVUKWv04oNYLCgHks5A2ZIVgIsAqy1/ixp65ReSe9g2Wcp4D
-KbYJ2vqRPxDNlFXpTKIMRVgDGowpbDq+p404J/1vxT0YzBPfqj3VkSBdCsg2DJoe
-SiOVa6WtjlYVy9gxo1+sEV5EdtuUhTn8wy3gaz7obZmfAS+0ssTjvn1ZRx5gpGP1
-9sV3+cIUCmc4cdVB1eamblQNe2dIuz3F719fkKEZCz1nOF9HnuTKhSX4Pc8MzSZ1
-qYGK+BAdX8e7LlGEjHERpCsnegOGT6YcfeKi0Ikvja2+YhChgQfw822gMIFZ89lv
-nD1DkxMnbr3bDppaBpTFa3l63CKD0240sEXq83FHxGoiL0Hqls4cQFhogGxDDyef
-rEkwdDabU1iixjax8Stc3honSHsQynrkXGVFLUNdQWdWam3Fe0nN7pYCBrsyxBZg
-k0WKJLOqdpVzE96cbYppujED/ZyOIoDveTQNlMVRdRdu9RHQq231uPcsezPeotww
-MTm3iscOGdh3Ft8Eq/ISWsLnIIUODuO52FRGgAdEaFIX7q2ilAxoeAgg6Tm9Shfx
-XZHz6ECV+fJUsQv9ZzV8dCG026PIjgrqNmVIF1P6oBW6s7oeCOXZm7wVZv1g3tRJ
-XdmpI+1s26sVPCIi4V3JOWHne+TgAHMoGrjaL0Cs2l2IGdIm24U=
-=s25k
+iQIzBAEBCgAdFiEEn89zMCo4uz3oY3njDC6nCWT30nMFAmqCXewACgkQDC6nCWT3
+0nPQeRAAo1NCe0JKpgwzQUHWr3nAsr5lW/uMfIiF/DTEmrnzqslnFfOa6ORfN9+s
+lAQy7Vf4p3Ou2GwPmLDd4971jtSIHn04ewhtFJq2BbPcu+NJGscYfPlhiRccVpIF
+7plAE9ADnQvHjAvo+v0/F7Y4iBdX3Nm5rV1PfIv9fNoCS8c9Jbx2VLDrT+upZ2Zi
+eQkWMH1HxNjHuWhzzp7I4dp2shR3slqAUrH0gPUySHbEYc9sr6WiF2iOfOZPnnUy
+yCTHslKEYfZZR11FVLmqGRx75R8jtdnF4GEBVi3j/ZMwzEUDB7QcPtjDfffC5AXg
+E6n+/ty2qX+It1r5t62nUSeuI/dH4x1rAQR0+X5Nb/DyYFG6Mjtucd9veOImZ4aw
+FwOizAEKUe2B2rvXHc2y0Ekt8NX+DIdAy7RNtDRJJ3cdDnp2/F3c2RWLu+HQ/qmh
+tecSNQqWBTuvHvFB98TtAHu0OuzYtoZDO8K8Iq2L+g06jH1TdRa5YuFyCMjeRToS
+THO087Ebpd8aIFJr38OsZ9ARGvB2bYCrJ15MN6xLUEpehf20CuJTG/Hva8yOMn+2
+cOV8WXtzUn07FhH59kTfGcqsKbmi2KejMXk+GwM+BsezPWou+pI/pUV1rquU+KRx
+jRqA9TRCtMO1ZV6YzXUb14jdUUL6sG7GhoSP+3uV1IRd9STlmdc=
+=Djlx
 -----END PGP SIGNATURE-----
