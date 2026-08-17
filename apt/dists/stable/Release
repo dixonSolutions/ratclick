@@ -1,24 +1,24 @@
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Mon, 17 Aug 2026 01:03:38 +0000
+Date: Mon, 17 Aug 2026 02:00:58 +0000
 Description: RatClick packages for Debian and Ubuntu
 Label: RatClick
 Origin: RatClick
 Suite: stable
 MD5Sum:
- c71d8bed3546cf87d174dd2cca71adf6             2292 main/binary-amd64/Packages
- 7d2cb24928aee484d3f10e9a46ec65a6              964 main/binary-amd64/Packages.gz
+ 7ee8eb764e4639e50e7f46d181f967e7             3438 main/binary-amd64/Packages
+ fdb34b700504ab31f9c9d84bf1fbed8b             1159 main/binary-amd64/Packages.gz
  f02dd22a50d3aea8cacfb447c109388f               85 main/binary-amd64/Release
 SHA1:
- 2d65177a9fc3d709e307fe88140cfd1da44281d2             2292 main/binary-amd64/Packages
- 5a80fe91f34518588a7fba1a03a0bb0181964fa3              964 main/binary-amd64/Packages.gz
+ 5bb76154e51240c7b22b600f62b94c8d7645ad74             3438 main/binary-amd64/Packages
+ 956400eca0238d59115392c25beee7952cbe3ac5             1159 main/binary-amd64/Packages.gz
  c7256ccd114c20b179d2f7a260f7cd788dfaa678               85 main/binary-amd64/Release
 SHA256:
- c8b8b1a3927d1cce1617ed5f193f9615709ab91b8bd7ce9802a757899c72ee5d             2292 main/binary-amd64/Packages
- b9f0ba459ed5aac0d484861e21f0852438dfa06dca4e5f1838587011a7b40439              964 main/binary-amd64/Packages.gz
+ 966d181c60a224ec043ed527f3687983efa195f99e5773d979e74b09716db337             3438 main/binary-amd64/Packages
+ 59d5d79548a2460408e7c6991061534ef2395a401a54e67dad7e46779c0b3ba4             1159 main/binary-amd64/Packages.gz
  2ba558388b76f853a0dad42ccaa154d180d74b33bd52a63918d967b6f3989dcc               85 main/binary-amd64/Release
 SHA512:
- 88be72da49988d8c3384c74f77faae06a7d74bc4c45dd4951a90b133600941030f86becc92f2eb4a98990536eab378c079b8ed866940f7115e41ee8261f62b6c             2292 main/binary-amd64/Packages
- 94ef19fe4d23e9ecf3eeac32772be7b8031a1d8f2f7b829eaa295336a7a229e43c14c478756ad9c561e2645de2fda5859f88c0e3e4dab13648698a24076c24bb              964 main/binary-amd64/Packages.gz
+ 9b32743110b02383ac3f9852375e2236170e1693061d45c829c85bd144eacb024c946efed0d288e4fa62fa257864caf4514c818835596bffd065806993f0c677             3438 main/binary-amd64/Packages
+ 04cdd6607466ee2fee0b2f80195b3eb5c6e2f0ea198f7ae0ae4962a92295cb43ace11233969069610e19ad0b9033f61cb0b9bea4ef3a2c76e1bb84592e522415             1159 main/binary-amd64/Packages.gz
  c3115f2a9f0f4f3a7293c2d8c0fb3365a4a39b088ee28533a13b9cbd7b24939f49b600d0c8d48900e52376a87347612f0b038d32d1f90aee394c240697974475               85 main/binary-amd64/Release
