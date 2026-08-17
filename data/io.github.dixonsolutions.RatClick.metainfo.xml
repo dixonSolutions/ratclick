@@ -74,6 +74,15 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="0.2.1" date="2026-08-17">
+      <description>
+        <p>
+          Fixes a missing icon on the setup wizard's final page and beside every
+          passing check in the diagnostics view, on systems without the legacy
+          Adwaita icon theme installed.
+        </p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-08-16">
       <description>
         <p>
