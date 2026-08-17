@@ -249,8 +249,10 @@ fn check_row(title: &str, ok: bool, detail: String) -> adw::ActionRow {
         .title(title)
         .subtitle(&detail)
         .build();
+    // `object-select-symbolic`, not `emblem-ok-symbolic`: Adwaita 50 dropped the
+    // legacy emblem set, leaving the latter to render as a broken image.
     let icon = gtk::Image::from_icon_name(if ok {
-        "emblem-ok-symbolic"
+        "object-select-symbolic"
     } else {
         "dialog-warning-symbolic"
     });

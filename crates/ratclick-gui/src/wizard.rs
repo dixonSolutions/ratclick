@@ -400,7 +400,10 @@ fn finish_page(state: &Rc<State>) -> adw::NavigationPage {
     };
 
     let status = adw::StatusPage::builder()
-        .icon_name("emblem-ok-symbolic")
+        // The app's own icon, not a themed checkmark: it ships in the package,
+        // so it cannot go missing the way `emblem-ok-symbolic` did when Adwaita
+        // 50 dropped the legacy emblems. Bookends the welcome page too.
+        .icon_name(ICON)
         .title("You're set")
         .description(format!(
             "{} clicks a minute with the {} button, running {run_for}.\n{shortcut_line}",
