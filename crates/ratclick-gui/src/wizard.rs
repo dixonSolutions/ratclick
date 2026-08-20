@@ -437,7 +437,9 @@ fn install_shortcut(config: &Config) -> Result<()> {
     match shortcut::apply(config) {
         Ok(_) => Ok(()),
         Err(initial_error)
-            if config.shortcut.backend == ShortcutBackend::Keyd && !shortcut::keyd::is_root() =>
+            if config.shortcut.backend == ShortcutBackend::Keyd
+                && shortcut::keyd::availability().is_ready()
+                && !shortcut::keyd::is_root() =>
         {
             privilege::run_keyd_action(KeydAction::Apply)
                 .with_context(|| format!("administrator access was needed after: {initial_error}"))

@@ -801,7 +801,9 @@ impl Ui {
                 }
             }
             Err(e)
-                if cfg.shortcut.backend == ShortcutBackend::Keyd && !shortcut::keyd::is_root() =>
+                if cfg.shortcut.backend == ShortcutBackend::Keyd
+                    && shortcut::keyd::availability().is_ready()
+                    && !shortcut::keyd::is_root() =>
             {
                 // keyd lives in /etc, so this needs a privileged helper.
                 self.escalate_keyd(&e.to_string());
