@@ -1,16 +1,18 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="RatClick — auto-clicking for GNOME" width="640">
+  <img src="assets/banner.svg" alt="RatClick — auto-clicking for Linux" width="640">
 </p>
 
 # RatClick
 
-An auto-clicker for GNOME. Pick a click rate, a mouse button and how long a run
-should last, then start it from the window, from a global keyboard shortcut, or
-from the command line.
+A desktop-independent auto-clicker for Linux. Pick a click rate, a mouse button
+and how long a run should last, then start it from the window, from a global
+keyboard shortcut, or from the command line.
 
 Clicks come from a virtual pointer created through the kernel `uinput` device,
-so they work under Wayland as well as X11 — no `XTEST`, no compositor
-cooperation required.
+so they work under Wayland and X11 on any desktop — no `XTEST` or compositor
+cooperation required. Shortcut registration is the desktop-specific part:
+RatClick supports GNOME shortcuts and its optional Shell extension, or `keyd`
+for a desktop-independent system-wide shortcut.
 
 ## Install
 
@@ -78,11 +80,11 @@ itself when the time is up.
 One key combination starts and stops clicking. RatClick can register it three
 different ways, because no single mechanism works everywhere:
 
-| Backend | Registered by | Needs root | Works outside GNOME |
+| Backend | Registered by | Needs root | Scope |
 | --- | --- | --- | --- |
-| `gnome` | a GNOME custom keybinding (gsettings) | no | no |
-| `extension` | the Shell extension, via `Main.wm.addKeybinding` | no | no |
-| `keyd` | [keyd](https://github.com/rvaiya/keyd), at the evdev layer | yes | yes, including a TTY |
+| `gnome` | a GNOME custom keybinding (gsettings) | no | GNOME session |
+| `extension` | the Shell extension, via `Main.wm.addKeybinding` | no | GNOME Shell |
+| `keyd` | [keyd](https://github.com/rvaiya/keyd), at the evdev layer | yes | any desktop, including a TTY |
 
 ```bash
 ratclick shortcut check '<Super><Shift>c'   # is it free?
@@ -96,9 +98,10 @@ in — window manager, Shell, Mutter, media keys and existing custom shortcuts �
 plus everything in `/etc/keyd`, and tells you what it would collide with.
 `--force` unbinds the other holder first.
 
-After installing, the binding is **read back** from the backend rather than
-assumed, so a write that silently failed is reported instead of looking like
-success.
+Before changing a keyd file, RatClick asks keyd to validate the complete
+configuration. After installing through any backend, the binding is **read
+back** rather than assumed, so a rejected write or failed reload is reported
+instead of looking like success.
 
 ### keyd notes
 

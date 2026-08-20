@@ -2,7 +2,7 @@
 name = "ratclick"
 # Kept to one short line: Debian uses `description` verbatim as the package
 # synopsis, and the prose belongs in extended-description below.
-description = "Configurable auto-clicker for GNOME"
+description = "Desktop-independent auto-clicker for Linux"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -56,9 +56,9 @@ license-file = ["../LICENSE", "0"]
 section = "utils"
 priority = "optional"
 extended-description = """
-RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button and \
-how long the run should last, then start it from the window, from a global \
-keyboard shortcut, or from the command line.
+RatClick is a desktop-independent auto-clicker for Linux. Pick a click rate, a \
+mouse button and how long the run should last, then start it from the window, \
+from a global keyboard shortcut, or from the command line.
 
 The clicks come from a virtual pointer created through the kernel uinput \
 device, so they behave the same under Wayland and X11. Your user needs to be \
@@ -83,11 +83,11 @@ assets = [
 # ---------------------------------------------------------------------------
 [package.metadata.generate-rpm]
 name = "ratclick"
-summary = "Configurable auto-clicker for GNOME"
+summary = "Desktop-independent auto-clicker for Linux"
 description = """
-RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button and \
-how long the run should last, then start it from the window, from a global \
-keyboard shortcut, or from the command line.
+RatClick is a desktop-independent auto-clicker for Linux. Pick a click rate, a \
+mouse button and how long the run should last, then start it from the window, \
+from a global keyboard shortcut, or from the command line.
 
 The clicks come from a virtual pointer created through the kernel uinput \
 device, so they behave the same under Wayland and X11. Your user needs to be \

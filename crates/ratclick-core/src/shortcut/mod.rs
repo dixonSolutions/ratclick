@@ -82,7 +82,7 @@ pub fn backend_statuses() -> Vec<BackendStatus> {
             detail: if gnome_ok {
                 "GNOME custom keybinding — no privileges needed".into()
             } else {
-                "gsettings or the GNOME media-keys schema is missing".into()
+                "requires an active GNOME session with the media-keys schema".into()
             },
         },
         BackendStatus {

@@ -16,7 +16,7 @@ use ratclick_core::{ipc, shortcut};
 #[command(
     name = "ratclick",
     version,
-    about = "RatClick — a configurable auto-clicker for GNOME",
+    about = "RatClick — a configurable auto-clicker for Linux",
     long_about = "RatClick clicks your mouse for you.\n\n\
                   Run `ratclick gui` for the app, or use the subcommands below. \
                   The first run walks you through setup.",

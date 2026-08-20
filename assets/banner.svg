@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="RatClick - Auto-clicking for GNOME">
-  <title>RatClick - Auto-clicking for GNOME</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-label="RatClick - Auto-clicking for Linux">
+  <title>RatClick - Auto-clicking for Linux</title>
 
   <defs>
     <linearGradient id="banner-bg" x1="0" y1="0" x2="1" y2="1">
@@ -84,5 +84,5 @@
 
   <text x="372" y="214"
         font-family="Cantarell, Inter, 'DejaVu Sans', 'Liberation Sans', sans-serif"
-        font-size="34" font-weight="400" letter-spacing="0.5" fill="#77767b">Auto-clicking for GNOME</text>
+        font-size="34" font-weight="400" letter-spacing="0.5" fill="#77767b">Auto-clicking for Linux</text>
 </svg>

@@ -89,9 +89,21 @@ impl Owner {
     }
 }
 
-/// Is the gsettings backend usable on this machine?
+/// Is the gsettings backend usable in this desktop session?
+///
+/// Having GNOME schemas installed is not enough: other desktops often carry
+/// them as transitive dependencies but do not run the settings daemon that
+/// watches custom keybindings.
 pub fn is_available() -> bool {
-    which(super::gsettings_bin()).is_some() && schema_exists(MEDIA_KEYS_SCHEMA)
+    let is_gnome_session = std::env::var("XDG_CURRENT_DESKTOP")
+        .ok()
+        .is_some_and(|desktops| {
+            desktops
+                .split(':')
+                .any(|desktop| desktop.eq_ignore_ascii_case("gnome"))
+        });
+
+    is_gnome_session && which(super::gsettings_bin()).is_some() && schema_exists(MEDIA_KEYS_SCHEMA)
 }
 
 fn which(bin: &str) -> Option<std::path::PathBuf> {

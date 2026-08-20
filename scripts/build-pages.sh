@@ -102,8 +102,9 @@ cat >"$SITE/index.html" <<EOF
 </head>
 <body>
 <h1>RatClick</h1>
-<p class="lede">An auto-clicker for GNOME. These are the signed apt and dnf
-repositories; both are refreshed by the release workflow.</p>
+<p class="lede">A desktop-independent auto-clicker for Linux. These are the
+signed apt and dnf repositories; both are refreshed by the release
+workflow.</p>
 
 <h2>Debian / Ubuntu</h2>
 <pre><code>sudo install -d -m 0755 /etc/apt/keyrings

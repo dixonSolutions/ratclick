@@ -2,7 +2,7 @@ ratclick(1)
 
 # NAME
 
-ratclick - a configurable auto-clicker for GNOME
+ratclick - a desktop-independent auto-clicker for Linux
 
 # SYNOPSIS
 
@@ -127,7 +127,9 @@ editor.
 
 Manage the global toggle shortcut. RatClick can register it through GNOME's own
 custom-keybinding list, through the bundled GNOME Shell extension, or through
-*keyd*(1) for a binding that works outside the desktop session.
+*keyd*(1) for a binding that works on any Linux desktop and outside the
+graphical session. Clicking itself is desktop-independent; only shortcut
+registration varies between desktop environments.
 
 *shortcut show*
 	Show RatClick's shortcut and which backend holds it, and warn when the

@@ -11,24 +11,24 @@
 
   <description>
     <p>
-      RatClick is an auto-clicker for GNOME. Pick a click rate, a mouse button
-      and how long the run should last, then start it from the window, from a
-      global keyboard shortcut, or from the command line.
+      RatClick is a desktop-independent auto-clicker for Linux. Pick a click
+      rate, a mouse button and how long the run should last, then start it from
+      the window, from a global keyboard shortcut, or from the command line.
     </p>
     <p>Features:</p>
     <ul>
       <li>Clicks per minute from a slow tap to a fast burst</li>
       <li>Left, right or middle button</li>
       <li>Endless runs, or a timed run that stops itself</li>
-      <li>A global toggle shortcut through GNOME, the bundled Shell extension, or keyd</li>
+      <li>A global toggle shortcut through GNOME, the bundled Shell extension, or desktop-independent keyd</li>
       <li>A Quick Settings toggle and panel indicator, through the bundled GNOME Shell extension</li>
       <li>A background service on the session bus, so the shortcut works without the window open</li>
       <li>A scriptable command line, including machine-readable status output</li>
     </ul>
     <p>
       The clicks come from a virtual pointer created through the kernel uinput
-      device, so they work the same under Wayland and X11. You need to be in
-      the input group; the bundled diagnostic command tells you whether you
+      device, so they work under Wayland and X11 on any desktop. You need to be
+      in the input group; the bundled diagnostic command tells you whether you
       already are.
     </p>
   </description>
