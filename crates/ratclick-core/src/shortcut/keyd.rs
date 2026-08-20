@@ -355,7 +355,7 @@ pub fn install(accels: &[Accel], command: &str) -> Result<Vec<PathBuf>> {
         files.push(dir.join("default.conf"));
     }
 
-    let mut written = Vec::new();
+    let mut updates = Vec::new();
     for file in files {
         let existing = fs::read_to_string(&file).unwrap_or_default();
         let updated = if accels.is_empty() {
@@ -364,9 +364,16 @@ pub fn install(accels: &[Accel], command: &str) -> Result<Vec<PathBuf>> {
             splice(&existing, &block)
         };
         if updated != existing {
-            write_atomic(&file, &updated)?;
-            written.push(file);
+            updates.push((file, updated));
         }
+    }
+
+    validate_updates(&updates)?;
+
+    let mut written = Vec::with_capacity(updates.len());
+    for (file, updated) in updates {
+        write_atomic(&file, &updated)?;
+        written.push(file);
     }
 
     reload()?;
@@ -399,26 +406,68 @@ fn write_atomic(path: &Path, body: &str) -> Result<()> {
     Ok(())
 }
 
-/// Ask keyd to re-read its configuration.
+/// Let keyd parse every prospective file before replacing any live config.
 ///
-/// A failure here is reported but not fatal: the config on disk is already
-/// correct and will be picked up on the next keyd restart.
-pub fn reload() -> Result<()> {
-    let out = Command::new("keyd").arg("reload").output();
-    match out {
-        Ok(o) if o.status.success() => Ok(()),
-        Ok(o) => {
-            tracing::warn!(
-                "keyd reload failed: {}",
-                String::from_utf8_lossy(&o.stderr).trim()
-            );
-            Ok(())
-        }
-        Err(e) => {
-            tracing::warn!("could not run `keyd reload`: {e}");
-            Ok(())
+/// Reading our managed block back only proves that it reached disk. `keyd
+/// check` catches syntax and layer errors that would otherwise leave the
+/// shortcut visible to RatClick but inactive in keyd.
+fn validate_updates(updates: &[(PathBuf, String)]) -> Result<()> {
+    if updates.is_empty() {
+        return Ok(());
+    }
+
+    let mut temporary_files = Vec::with_capacity(updates.len());
+    for (path, body) in updates {
+        let temporary = path.with_extension("conf.ratclick-check");
+        fs::write(&temporary, body)
+            .with_context(|| format!("writing validation file {}", temporary.display()))?;
+        temporary_files.push(temporary);
+    }
+
+    let result = Command::new("keyd")
+        .arg("check")
+        .args(&temporary_files)
+        .output();
+
+    for temporary in &temporary_files {
+        if let Err(error) = fs::remove_file(temporary) {
+            tracing::warn!("could not remove {}: {error}", temporary.display());
         }
     }
+
+    let result = result.context("running `keyd check`")?;
+    let stdout = String::from_utf8_lossy(&result.stdout);
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    anyhow::ensure!(
+        result.status.success(),
+        "keyd rejected the generated configuration: {}",
+        [stdout.trim(), stderr.trim()]
+            .into_iter()
+            .filter(|message| !message.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    Ok(())
+}
+
+/// Ask keyd to re-read its configuration.
+pub fn reload() -> Result<()> {
+    let output = Command::new("keyd")
+        .arg("reload")
+        .output()
+        .context("running `keyd reload`")?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    anyhow::ensure!(
+        output.status.success(),
+        "keyd reload failed: {}",
+        [stdout.trim(), stderr.trim()]
+            .into_iter()
+            .filter(|message| !message.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    Ok(())
 }
 
 #[cfg(test)]

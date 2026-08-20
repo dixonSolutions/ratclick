@@ -5,6 +5,7 @@
 
 mod bridge;
 mod capture;
+mod privilege;
 mod window;
 mod wizard;
 

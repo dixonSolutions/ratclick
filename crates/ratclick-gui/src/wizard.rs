@@ -8,11 +8,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
+use anyhow::{Context, Result};
 use ratclick_core::accel::Accel;
 use ratclick_core::config::{Button, ClickMode, Config, ShortcutBackend, MIN_CPM};
 use ratclick_core::shortcut;
 
 use crate::capture;
+use crate::privilege::{self, KeydAction};
 
 const ICON: &str = "io.github.dixonsolutions.RatClick";
 
@@ -366,7 +368,7 @@ fn finish_page(state: &Rc<State>) -> adw::NavigationPage {
                 let _ = taken;
             }
         }
-        match shortcut::apply(&cfg) {
+        match install_shortcut(&cfg) {
             Ok(_) => {
                 let live = shortcut::installed(cfg.shortcut.backend);
                 if live != cfg.shortcut.bindings {
@@ -377,13 +379,9 @@ fn finish_page(state: &Rc<State>) -> adw::NavigationPage {
                     );
                 }
             }
-            Err(e) => problems.push(match cfg.shortcut.backend {
-                ShortcutBackend::Keyd => format!(
-                    "keyd needs administrator rights: run `sudo ratclick shortcut apply` \
-                     in a terminal. ({e})"
-                ),
-                _ => format!("Could not register the shortcut: {e}"),
-            }),
+            Err(error) => {
+                problems.push(format!("Could not register the shortcut: {error:#}"));
+            }
         }
     }
 
@@ -431,4 +429,19 @@ fn finish_page(state: &Rc<State>) -> adw::NavigationPage {
     });
 
     page("Done", &status, "finish")
+}
+
+/// Install the selected backend, obtaining the narrowly-scoped privilege keyd
+/// needs instead of leaving first-run setup with an inactive shortcut.
+fn install_shortcut(config: &Config) -> Result<()> {
+    match shortcut::apply(config) {
+        Ok(_) => Ok(()),
+        Err(initial_error)
+            if config.shortcut.backend == ShortcutBackend::Keyd && !shortcut::keyd::is_root() =>
+        {
+            privilege::run_keyd_action(KeydAction::Apply)
+                .with_context(|| format!("administrator access was needed after: {initial_error}"))
+        }
+        Err(error) => Err(error),
+    }
 }

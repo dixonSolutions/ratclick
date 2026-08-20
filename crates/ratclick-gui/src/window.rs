@@ -11,6 +11,7 @@ use ratclick_core::{ipc, shortcut};
 
 use crate::bridge::{Bridge, Cmd, Snapshot};
 use crate::capture;
+use crate::privilege::{self, KeydAction};
 
 /// The GUI owns this name on the session bus (GtkApplication does it for
 /// us); the daemon deliberately uses a different one. See `ipc::BUS_NAME`.
@@ -799,7 +800,9 @@ impl Ui {
                     self.toast("The shortcut did not register — see `ratclick doctor`");
                 }
             }
-            Err(e) if cfg.shortcut.backend == ShortcutBackend::Keyd => {
+            Err(e)
+                if cfg.shortcut.backend == ShortcutBackend::Keyd && !shortcut::keyd::is_root() =>
+            {
                 // keyd lives in /etc, so this needs a privileged helper.
                 self.escalate_keyd(&e.to_string());
             }
@@ -849,7 +852,7 @@ impl Ui {
         // keyd lives in /etc, so its removal needs root; offer that rather than
         // silently leaving a live shortcut behind.
         if !shortcut::keyd::installed().is_empty() {
-            self.escalate_keyd_verb("clear", "the keyd shortcut still needs removing");
+            self.escalate_keyd_action(KeydAction::Clear, "the keyd shortcut still needs removing");
         }
 
         *self.config.borrow_mut() = Config::default();
@@ -862,20 +865,20 @@ impl Ui {
 
     /// Ask for admin rights and re-run the keyd installation as root.
     /// Ask for admin rights and run one privileged `ratclick` subcommand.
-    ///
-    /// `verb` is `apply` to install the keyd binding or `clear` to remove it;
-    /// both write to /etc/keyd, which the session user cannot do.
     fn escalate_keyd(self: &Rc<Self>, why: &str) {
-        self.escalate_keyd_verb("apply", why);
+        self.escalate_keyd_action(KeydAction::Apply, why);
     }
 
-    fn escalate_keyd_verb(self: &Rc<Self>, verb: &'static str, why: &str) {
-        let action = if verb == "clear" { "remove" } else { "install" };
+    fn escalate_keyd_action(self: &Rc<Self>, action: KeydAction, why: &str) {
+        let action_label = match action {
+            KeydAction::Apply => "install",
+            KeydAction::Clear => "remove",
+        };
         let dialog = adw::AlertDialog::new(
             Some("Administrator access needed"),
             Some(&format!(
                 "keyd shortcuts live in /etc/keyd, so RatClick needs to run one command as \
-                 root to {action} them.\n\n{why}"
+                 root to {action_label} them.\n\n{why}"
             )),
         );
         dialog.add_response("cancel", "Cancel");
@@ -888,25 +891,15 @@ impl Ui {
             if response != "ok" {
                 return;
             }
-            // pkexec scrubs the environment, so the config location has to be
-            // passed through: root's own config is not the one in play.
-            let config = Config::path().unwrap_or_default();
-            match std::process::Command::new("pkexec")
-                .arg("env")
-                .arg(format!("RATCLICK_CONFIG={}", config.display()))
-                .args(["ratclick", "shortcut", verb])
-                .status()
-            {
-                Ok(s) if s.success() => {
+            match privilege::run_keyd_action(action) {
+                Ok(()) => {
                     ui.refresh_shortcut_row();
-                    ui.toast(if verb == "clear" {
-                        "keyd shortcut removed"
-                    } else {
-                        "keyd shortcut installed"
+                    ui.toast(match action {
+                        KeydAction::Apply => "keyd shortcut installed",
+                        KeydAction::Clear => "keyd shortcut removed",
                     });
                 }
-                Ok(_) => ui.toast("The privileged step was cancelled or failed"),
-                Err(e) => ui.toast(&format!("Could not run pkexec: {e}")),
+                Err(error) => ui.toast(&format!("Could not update keyd: {error:#}")),
             }
         });
         dialog.present(Some(&self.window));
@@ -992,7 +985,7 @@ pub fn present_about(parent: &impl IsA<gtk::Widget>) {
         .website("https://github.com/dixonSolutions/ratclick")
         .issue_url("https://github.com/dixonSolutions/ratclick/issues")
         .license_type(gtk::License::MitX11)
-        .comments("A configurable auto-clicker for GNOME.")
+        .comments("A desktop-independent auto-clicker for Linux.")
         .build();
     about.present(Some(parent.as_ref()));
 }
